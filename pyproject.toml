@@ -7,10 +7,8 @@ authors = [
     { email = "dantedeluca3219@icloud.com" }
 ]
 requires-python = ">=3.11"
-dependencies = []
+dependencies = [
+    "openai>=3.37.0",
+    "python-dotenv>=1.2.4",
+]
 
-[project.scripts]
-
-[build-system]
-requires = ["uv_build>=0.12.18,<0.13.0"]
-build-backend = "uv_build"
