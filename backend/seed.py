@@ -63,6 +63,8 @@ MESSY_PATIENTS = [
     # Same name with and without accents, so "Helene" matches both
     ("Hélène", "Bouchard", "1972-06-08", "514.555.0102"),
     ("Helene", "Bouchard", "1972-06-18", "5145550103"),
+    # Accented first name sharing a last name with the Marie Tremblays
+    ("Hélène", "Tremblay", "1979-02-14", "514-555-0142"),
     # Hyphen and accents in both names
     ("Jean-François", "Côté-Lavoie", "1990-11-23", "+1 514 555 0104"),
     # Twins sharing a household phone number
@@ -74,7 +76,9 @@ MESSY_PATIENTS = [
 ]
 
 GENERATED_PATIENT_COUNT = 50 - len(MESSY_PATIENTS)
-FIRST_PHONE_SUFFIX_FOR_GENERATED = 110  # after the messy patients' numbers
+# Generated patients get 555-0150 and up, so they never reuse a messy
+# patient's number (the highest is 555-0142).
+FIRST_PHONE_SUFFIX_FOR_GENERATED = 150
 
 FIRST_NAMES = [
     "Émilie", "Olivier", "Camille", "Gabriel", "Léa", "Thomas", "Zoé",
