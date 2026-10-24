@@ -24,6 +24,7 @@ backend/    FastAPI fake practice management system + SQLite (seed.py, clinic.db
 config/     Clinic-specific settings: maple_dental.yaml
 docs/       Project definition, implementation plan (read only through /step)
 scripts/    Helper scripts (get_step.py powers the /step command)
+tests/      pytest tests
 ```
 
 ## Stack
