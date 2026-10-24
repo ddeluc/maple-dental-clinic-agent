@@ -294,6 +294,7 @@ version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
     { name = "fastapi" },
+    { name = "httpx" },
     { name = "openai" },
     { name = "python-dotenv" },
     { name = "pyyaml" },
@@ -302,13 +303,13 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
-    { name = "httpx" },
     { name = "pytest" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "fastapi", specifier = ">=0.162.0" },
+    { name = "httpx", specifier = ">=0.28.1" },
     { name = "openai", specifier = ">=3.37.0" },
     { name = "python-dotenv", specifier = ">=1.2.4" },
     { name = "pyyaml", specifier = ">=6.0.3" },
@@ -316,10 +317,7 @@ requires-dist = [
 ]
 
 [package.metadata.requires-dev]
-dev = [
-    { name = "httpx", specifier = ">=0.28.1" },
-    { name = "pytest", specifier = ">=9.1.1" },
-]
+dev = [{ name = "pytest", specifier = ">=9.1.1" }]
 
 [[package]]
 name = "openai"

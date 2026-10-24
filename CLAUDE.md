@@ -47,7 +47,7 @@ This project uses **uv** for Python, the virtual environment and dependencies. N
 
 - Install / sync dependencies: `uv sync`
 - Add a dependency: `uv add <package>` (dev-only: `uv add --dev <package>`)
-- Seed the database: `uv run python backend/seed.py`
+- Seed the database: `uv run python -m backend.seed`
 - Run the backend: `uv run uvicorn backend.main:app --reload` (docs at http://localhost:8000/docs)
 - Text agent: `uv run python -m agent.chat`
 - Voice agent (dev): `uv run python -m agent.voice dev`
@@ -59,7 +59,7 @@ Update this section when a command changes.
 - **Clinic-specific content lives in `config/`, never in Python.** Prompts, clinic info, escalation rules and greetings are loaded from YAML.
 - **One set of tool functions** is shared by the text agent and the voice agent. Don't copy tools between modes.
 - **Safety rules are enforced in code, not only in the prompt.** Booking, rescheduling and cancelling must fail if the patient isn't verified in the current conversation. Emergency language always leads to `transfer_to_human(queue="urgent")`.
-- **The agent replies in the caller's language** and greets in French first ("Bonjour, hi").
+- **The agent greets in French first** ("Bonjour, hi"), then uses the language of the caller's first message for the whole call.
 - **Fake data only.** No real patient information anywhere, including tests and logs.
 - **Secrets stay in `.env`**, which is git-ignored. Never print, log or commit API keys.
 - Use type hints, small functions, and clear names. Readability beats brevity everywhere. Prefer the standard library and the existing stack before adding a dependency, and ask me before adding one (with `uv add`).

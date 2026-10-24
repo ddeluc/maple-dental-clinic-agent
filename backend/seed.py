@@ -1,6 +1,6 @@
 """Create backend/clinic.db from scratch and fill it with fake clinic data.
 
-Run with: uv run python backend/seed.py
+Run with: uv run python -m backend.seed
 
 Every run deletes the old database first, so the result is always the same
 clean starting point. All patient data is fictional.
@@ -10,6 +10,8 @@ import random
 import sqlite3
 from datetime import date, datetime, time, timedelta
 from pathlib import Path
+
+from backend.clinic_facts import load_clinic_facts, opening_hours
 
 BACKEND_DIR = Path(__file__).parent
 DB_PATH = BACKEND_DIR / "clinic.db"
@@ -21,14 +23,10 @@ RANDOM_SEED = 42
 
 SLOT_DAYS = 28  # 4 weeks of open slots, starting today
 
-LOCATIONS = ["Plateau", "Verdun", "Saint-Laurent"]
-
-# Hours live here for now, as agreed in Step 1.1. They should move to
-# config/ once get_clinic_info needs them too.
-WEEKDAY_HOURS = (time(8, 0), time(17, 0))
-SATURDAY_HOURS = (time(9, 0), time(13, 0))
-LOCATIONS_OPEN_SATURDAY = ["Plateau"]
-SATURDAY = 5  # date.weekday() numbers Monday as 0 and Sunday as 6
+# Location names and opening hours come from config/, the same place
+# get_clinic_info reads them, so slots only exist when the clinic says it's open.
+CLINIC_FACTS = load_clinic_facts()
+LOCATIONS = list(CLINIC_FACTS["locations"])
 
 APPOINTMENT_TYPES = [
     # (name, provider_role, duration_minutes)
@@ -98,15 +96,6 @@ CANCELLED_APPOINTMENTS = [
     "Scheduling conflict at work",
     "Feeling unwell",
 ]
-
-
-def opening_hours(location_name: str, day: date) -> tuple[time, time] | None:
-    """Return (open, close) for a location on a day, or None if closed."""
-    if day.weekday() < SATURDAY:
-        return WEEKDAY_HOURS
-    if day.weekday() == SATURDAY and location_name in LOCATIONS_OPEN_SATURDAY:
-        return SATURDAY_HOURS
-    return None
 
 
 def slot_times(
@@ -212,7 +201,7 @@ def insert_slots(
     for day_offset in range(SLOT_DAYS):
         day = first_day + timedelta(days=day_offset)
         for provider_id, role, location_name in providers:
-            hours = opening_hours(location_name, day)
+            hours = opening_hours(CLINIC_FACTS, location_name, day)
             if hours is None:
                 continue
             opens, closes = hours

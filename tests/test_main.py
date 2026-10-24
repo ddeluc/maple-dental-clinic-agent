@@ -84,6 +84,72 @@ def test_get_unknown_location_returns_404(client):
     assert response.status_code == 404
 
 
+# --- GET /locations ---
+
+
+def test_list_locations_returns_all_three_in_id_order(client):
+    response = client.get("/locations")
+    assert response.status_code == 200
+    assert response.json() == [
+        {"id": 1, "name": "Plateau"},
+        {"id": 2, "name": "Verdun"},
+        {"id": 3, "name": "Saint-Laurent"},
+    ]
+
+
+# --- GET /clinic-info ---
+
+
+def test_clinic_info_hours_for_one_location(client):
+    response = client.get("/clinic-info", params={"topic": "hours", "location": "Verdun"})
+    assert response.status_code == 200
+    body = response.json()
+    assert body["location"] == "Verdun"
+    assert body["details"]["saturday"] == "closed"
+    assert body["details"]["friday"] == "08:00-17:00"
+
+
+def test_clinic_info_hours_say_where_else_is_open_on_closed_days(client):
+    response = client.get("/clinic-info", params={"topic": "hours", "location": "Verdun"})
+    open_elsewhere = response.json()["open_elsewhere"]
+    # Only Verdun's closed days are listed, and nothing opens on Sunday.
+    assert open_elsewhere == {"saturday": {"Plateau": "09:00-13:00"}, "sunday": {}}
+
+
+def test_clinic_info_address_has_no_open_elsewhere(client):
+    response = client.get("/clinic-info", params={"topic": "address", "location": "Verdun"})
+    assert response.json()["open_elsewhere"] is None
+
+
+def test_clinic_info_address_is_text(client):
+    response = client.get("/clinic-info", params={"topic": "address", "location": "Plateau"})
+    assert "rue Saint-Denis" in response.json()["details"]
+
+
+def test_clinic_info_insurers_ignore_location(client):
+    response = client.get("/clinic-info", params={"topic": "insurers"})
+    assert response.status_code == 200
+    body = response.json()
+    assert body["location"] is None
+    assert "Desjardins Insurance" in body["details"]
+
+
+def test_clinic_info_location_topic_without_location_returns_422(client):
+    response = client.get("/clinic-info", params={"topic": "parking"})
+    assert response.status_code == 422
+    assert "Plateau, Verdun, Saint-Laurent" in response.json()["detail"]
+
+
+def test_clinic_info_unknown_location_returns_404(client):
+    response = client.get("/clinic-info", params={"topic": "hours", "location": "Laval"})
+    assert response.status_code == 404
+
+
+def test_clinic_info_unknown_topic_returns_422(client):
+    response = client.get("/clinic-info", params={"topic": "dress code", "location": "Verdun"})
+    assert response.status_code == 422
+
+
 # --- GET /slots ---
 
 
@@ -134,6 +200,16 @@ def test_slots_include_the_whole_last_day(client):
         assert slot["start_time"].startswith(FIRST_DAY.isoformat())
     # The Plateau closes at 17:00 and cleanings are 60 minutes long.
     assert slots[-1]["start_time"] == f"{FIRST_DAY.isoformat()}T16:00"
+
+
+def test_slots_that_already_started_are_not_returned(client):
+    set_now(datetime(2026, 10, 26, 12, 30))  # lunchtime on FIRST_DAY
+    response = get_slots(client, PLATEAU_ID, "cleaning", FIRST_DAY, FIRST_DAY)
+    start_times = []
+    for slot in response.json():
+        start_times.append(slot["start_time"])
+    # The 12:00 cleaning started half an hour ago; 13:00 is the next one.
+    assert start_times[0] == f"{FIRST_DAY.isoformat()}T13:00"
 
 
 def test_booked_slots_are_not_returned(client, db_path):
@@ -348,6 +424,9 @@ def test_book_past_slot_returns_422(client, db_path):
 
     assert response.status_code == 422
     assert response.json() == {"detail": "That slot is in the past."}
+    # /slots hides slots that have started, so go back in time to check
+    # that the refused booking didn't take the slot.
+    set_now(TEST_NOW)
     assert slot["id"] in open_slot_ids(client, "cleaning", FIRST_DAY)
 
 

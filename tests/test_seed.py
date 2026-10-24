@@ -4,10 +4,12 @@ from pathlib import Path
 
 import pytest
 
-from backend.seed import SATURDAY, SLOT_DAYS, opening_hours, seed
+from backend.clinic_facts import opening_hours
+from backend.seed import CLINIC_FACTS, SLOT_DAYS, seed
 
 # A fixed Monday keeps these tests independent of the day they run.
 FIRST_DAY = date(2026, 10, 26)
+SATURDAY = 5  # date.weekday() numbers Monday as 0
 
 
 @pytest.fixture
@@ -92,7 +94,7 @@ def test_slots_fall_within_opening_hours_and_four_weeks(conn):
     last_day = FIRST_DAY + timedelta(days=SLOT_DAYS - 1)
     for location_name, start, end in slots_with_location(conn):
         assert FIRST_DAY <= start.date() <= last_day
-        hours = opening_hours(location_name, start.date())
+        hours = opening_hours(CLINIC_FACTS, location_name, start.date())
         assert hours is not None, f"{location_name} slot on a closed day: {start}"
         opens, closes = hours
         assert opens <= start.time()

@@ -8,11 +8,12 @@ import sqlite3
 from collections.abc import Iterator
 from datetime import date, datetime, timedelta
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import Depends, FastAPI, HTTPException, Query
 from pydantic import BaseModel
 
+from backend.clinic_facts import CLOSED, DAY_NAMES, load_clinic_facts
 from backend.seed import DB_PATH
 from backend.verification import normalize_name, normalize_phone
 
@@ -24,6 +25,12 @@ PATIENT_AMBIGUOUS = (
     " number, so the patient can't be identified."
 )
 SLOT_TAKEN = "That slot is already booked."
+
+# Read once at startup. uvicorn --reload only watches .py files, so restart
+# the server after editing config/maple_dental.yaml.
+CLINIC_FACTS = load_clinic_facts()
+# Insurers are the same at every location; the other topics differ by location.
+ClinicTopic = Literal["hours", "address", "parking", "insurers"]
 
 # The project definition allows bookings from now up to 4 weeks ahead.
 BOOKING_WINDOW_DAYS = 28
@@ -52,7 +59,8 @@ APPOINTMENT_QUERY = """
 
 # A slot is open when no booked appointment points to it (cancelled ones
 # don't count). Times are ISO 8601 text, which sorts and compares correctly
-# as plain strings, so the date range is a simple text comparison.
+# as plain strings, so the date range is a simple text comparison. The last
+# condition drops slots that started before "now".
 OPEN_SLOTS_QUERY = """
     SELECT
         slots.id,
@@ -67,6 +75,7 @@ OPEN_SLOTS_QUERY = """
       AND providers.role = ?
       AND slots.start_time >= ?
       AND slots.start_time < ?
+      AND slots.start_time >= ?
       AND NOT EXISTS (
           SELECT 1 FROM appointments
           WHERE appointments.slot_id = slots.id
@@ -79,6 +88,17 @@ OPEN_SLOTS_QUERY = """
 class Location(BaseModel):
     id: int
     name: str
+
+
+class ClinicInfo(BaseModel):
+    topic: str
+    location: str | None  # None for insurers, which are clinic-wide
+    # Hours are {"monday": "08:00-17:00", ...}, address and parking are
+    # text, and insurers are a list of names.
+    details: dict[str, str] | str | list[str]
+    # Hours only: for each day this location is closed, the other locations
+    # open that day, e.g. {"saturday": {"Plateau": "09:00-13:00"}}.
+    open_elsewhere: dict[str, dict[str, str]] | None = None
 
 
 class Slot(BaseModel):
@@ -156,6 +176,15 @@ def get_now() -> datetime:
 Now = Annotated[datetime, Depends(get_now)]
 
 
+@app.get("/locations")
+def list_locations(db: Database) -> list[Location]:
+    rows = db.execute("SELECT id, name FROM locations ORDER BY id").fetchall()
+    locations = []
+    for row in rows:
+        locations.append(Location(id=row["id"], name=row["name"]))
+    return locations
+
+
 @app.get("/locations/{location_id}")
 def get_location(location_id: int, db: Database) -> Location:
     row = db.execute(
@@ -166,9 +195,62 @@ def get_location(location_id: int, db: Database) -> Location:
     return Location(id=row["id"], name=row["name"])
 
 
+def find_open_elsewhere(location_name: str) -> dict[str, dict[str, str]]:
+    """For each day a location is closed, list the other locations open then."""
+    # Telling the model where else it can send the caller works far more
+    # reliably than asking it, in the prompt, to look up every other
+    # location's hours by itself.
+    hours = CLINIC_FACTS["locations"][location_name]["hours"]
+    open_elsewhere = {}
+    for day_name in DAY_NAMES:
+        if hours[day_name] != CLOSED:
+            continue
+        open_locations = {}
+        for other_name, other_facts in CLINIC_FACTS["locations"].items():
+            other_hours = other_facts["hours"][day_name]
+            if other_name != location_name and other_hours != CLOSED:
+                open_locations[other_name] = other_hours
+        open_elsewhere[day_name] = open_locations
+    return open_elsewhere
+
+
+@app.get("/clinic-info")
+def get_clinic_info(
+    topic: Annotated[ClinicTopic, Query(description="hours, address, parking or insurers")],
+    location: Annotated[
+        str | None, Query(description="Location name; not needed for insurers")
+    ] = None,
+) -> ClinicInfo:
+    """Return one clinic fact from config/maple_dental.yaml."""
+    if topic == "insurers":
+        return ClinicInfo(topic=topic, location=None, details=CLINIC_FACTS["insurers"])
+
+    location_names = ", ".join(CLINIC_FACTS["locations"])
+    if location is None:
+        raise HTTPException(
+            status_code=422,
+            detail=f"The {topic} answer depends on the location. Choose one of: {location_names}.",
+        )
+    location_facts = CLINIC_FACTS["locations"].get(location)
+    if location_facts is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No location named '{location}'. The locations are: {location_names}.",
+        )
+    if topic == "hours":
+        return ClinicInfo(
+            topic=topic,
+            location=location,
+            details=location_facts["hours"],
+            open_elsewhere=find_open_elsewhere(location),
+        )
+    return ClinicInfo(topic=topic, location=location, details=location_facts[topic])
+
+
 @app.get("/slots")
 def get_open_slots(
     db: Database,
+    now: Now,
     location: Annotated[int, Query(description="Location id")],
     # "type" and "from" are the public parameter names, but "from" is a
     # Python keyword and "type" is a built-in, so the Python names differ
@@ -177,7 +259,11 @@ def get_open_slots(
     first_day: Annotated[date, Query(alias="from", description="YYYY-MM-DD")],
     last_day: Annotated[date, Query(alias="to", description="YYYY-MM-DD, inclusive")],
 ) -> list[Slot]:
-    """Return the open slots for one location and appointment type."""
+    """Return the open slots for one location and appointment type.
+
+    Slots that have already started are left out, even inside the requested
+    dates, because they can no longer be booked.
+    """
     if first_day > last_day:
         raise HTTPException(status_code=422, detail="'from' must be on or before 'to'.")
 
@@ -208,6 +294,9 @@ def get_open_slots(
             type_row["provider_role"],
             first_day.isoformat(),
             day_after_last.isoformat(),
+            # Same "2026-10-26T09:00" form as start_time, so the text
+            # comparison works.
+            now.isoformat(timespec="minutes"),
         ),
     ).fetchall()
 

@@ -21,23 +21,116 @@ system_prompt: |
 
   Languages:
   - You speak French and English. In French, use "vous" instead of "tu".
-  - Always reply in the language of the caller's most recent message.
-    If the caller switches language, switch with them right away.
-  - Write each reply entirely in one language. Don't add French words to an
-    English reply or English words to a French reply. The bilingual greeting
-    is the only exception, and it has already been said.
-    For example, if the caller writes "Hi, I'd like a cleaning", reply
-    "Sure! Which location would you prefer?", not "Bien sûr! Which location
-    would you prefer?". If the caller says "Thanks, bye!", reply "Goodbye!",
-    not "Au revoir!".
-  - If a message mixes French and English, reply in the language most of
-    the message is in.
-  - If the caller uses another language, say in both French and English that
-    you can help in French or English.
+  - Each call uses one language, chosen from the caller's first message and
+    stated at the end of these instructions. Keep to it for the whole call,
+    even if the caller later speaks the other language.
+  - Write each reply entirely in the call's language. Don't add French words
+    to an English reply or English words to a French reply. The bilingual
+    greeting is the only exception, and it has already been said.
+    For example, in an English call reply "Sure! Which location would you
+    prefer?", not "Bien sûr! Which location would you prefer?", and
+    "Goodbye!", not "Au revoir!".
 
   You have already greeted the caller, so don't greet them again.
 
-  The only clinic facts you know are the ones written above. Never invent
-  appointment times, opening hours, policies, patient details or any other
-  fact. If the caller asks something you don't know, say honestly that you
-  don't have that information.
+  Tools:
+  - Use get_clinic_info for opening hours, addresses, parking and accepted
+    insurers, and check_availability for open appointment times. Never
+    answer these from memory, even if you think you know.
+  - Today's date and next week's dates are given at the end of these
+    instructions. Use them to turn words like "tomorrow" or "next week"
+    into dates.
+  - If a location is closed on the day the caller wants, say so, and offer
+    the location that "open_elsewhere" lists for that day, with its hours.
+  - When you read out open times, offer two or three, not the whole list.
+    Say times the way people speak, like "Monday at 9 a.m.". Never read
+    out ids.
+  - If a tool returns "ok": false, explain the problem to the caller in
+    plain words and offer a way forward, such as other dates or another
+    location. Never mention tools, errors or the system's internals.
+
+  Never invent appointment times, opening hours, policies, patient details
+  or any other fact. If the caller asks something you don't know and no tool
+  can tell you, say honestly that you don't have that information.
+
+# The call's language is chosen once, from the caller's first message that
+# is clearly French or English. This prompt classifies that one message;
+# the agent never sees it.
+language_detection_prompt: |
+  You decide which language a phone call to a Montreal dental clinic will
+  use, from the caller's first message.
+  - Answer "french" if the message is in French, "english" if it's in
+    English.
+  - If it mixes both, answer the language most of the message is in.
+    Place and street names such as "Plateau", "Saint-Laurent" or
+    "rue Wellington" don't count as French.
+  - Answer "unclear" if it's in another language, or too short to tell,
+    such as "ok", "hmm" or only a name.
+
+# Said instead of a model reply while the language is still unclear (another
+# language, or a message too short to tell). Bilingual like the greeting,
+# French first.
+unclear_language_reply: >-
+  Je peux vous aider en français ou en anglais. I can help you in French or
+  English.
+
+# Added to the system prompt once the call's language is chosen.
+language_rules:
+  french: >-
+    The language of this call is French. Reply only in French for the rest
+    of the call, even if the caller later writes in English.
+  english: >-
+    The language of this call is English. Reply only in English for the
+    rest of the call, even if the caller later writes in French.
+
+# Clinic facts. The fake practice management system (backend/) serves these
+# to get_clinic_info, and backend/seed.py creates slots only inside these
+# opening hours. Addresses and parking details are fictional.
+# Hours are "HH:MM-HH:MM" in Montreal time, or "closed".
+locations:
+  Plateau:
+    address: 4120 rue Saint-Denis, Montréal, QC H2W 2M5
+    parking: >-
+      Paid street parking on rue Saint-Denis. The Mont-Royal metro station
+      is a five minute walk away.
+    hours:
+      monday: "08:00-17:00"
+      tuesday: "08:00-17:00"
+      wednesday: "08:00-17:00"
+      thursday: "08:00-17:00"
+      friday: "08:00-17:00"
+      saturday: "09:00-13:00"
+      sunday: closed
+  Verdun:
+    address: 4455 rue Wellington, Verdun, QC H4G 1W8
+    parking: >-
+      Free parking for patients in the lot behind the building, entrance on
+      rue Galt.
+    hours:
+      monday: "08:00-17:00"
+      tuesday: "08:00-17:00"
+      wednesday: "08:00-17:00"
+      thursday: "08:00-17:00"
+      friday: "08:00-17:00"
+      saturday: closed
+      sunday: closed
+  Saint-Laurent:
+    address: 1650 boulevard Marcel-Laurin, Saint-Laurent, QC H4R 1J9
+    parking: Free underground parking in the building, level P1.
+    hours:
+      monday: "08:00-17:00"
+      tuesday: "08:00-17:00"
+      wednesday: "08:00-17:00"
+      thursday: "08:00-17:00"
+      friday: "08:00-17:00"
+      saturday: closed
+      sunday: closed
+
+# Accepted at every location.
+insurers:
+  - Sun Life
+  - Manulife
+  - Canada Life
+  - Desjardins Insurance
+  - Green Shield Canada
+  - Blue Cross

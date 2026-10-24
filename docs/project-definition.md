@@ -39,7 +39,7 @@ An AI phone agent that answers a dental clinic's scheduling line in French or En
 
 ### Language
 - Greet in French first: "Bonjour, hi".
-- Reply in the caller's language. If the caller switches mid-call, switch with them.
+- The caller's first message sets the language for the whole call. If the caller later speaks the other language, keep the call's language.
 - Transfer summaries are written in the caller's language.
 
 ## 3. Agent tools
@@ -62,14 +62,14 @@ Tools return errors as data the LLM can read, for example `{"ok": false, "error"
 |---|---|---|
 | Task success | 85% or more of in-scope eval calls end correctly | Evals |
 | Correct escalation | 100% of emergency calls transferred to `urgent`; under 10% unnecessary transfers | Evals |
-| Language handling | Replies in the caller's language 100% of the time, including after a switch | Evals |
+| Language handling | Replies in the language set by the caller's first message 100% of the time, including when the caller later speaks the other language | Evals |
 | Latency | p50 response under 1 second, p95 under 2 seconds | Real call logs |
 
 ## 5. Tech stack
 
 - **Phone line:** Twilio number, SIP trunk to LiveKit.
 - **Voice framework:** LiveKit Agents (Python). Use its built-in audio loop, interruption handling and turn detection; don't build your own.
-- **Speech to text:** Deepgram multilingual model, so French, English and mid-call switching work in one stream.
+- **Speech to text:** Deepgram multilingual model, so French and English work in one stream without choosing the language in advance.
 - **LLM:** OpenAI model with tool calling.
 - **Text to speech:** Cartesia (Sonic).
 - **Clinic backend:** FastAPI with SQLite. A fake practice management system with locations, providers, patients, slots and appointments. Seed it with some messy data (duplicate names, similar dates of birth).
