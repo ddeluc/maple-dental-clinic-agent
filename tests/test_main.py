@@ -1,16 +1,27 @@
 import sqlite3
 from collections.abc import Iterator
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
 
-from backend.main import PATIENT_AMBIGUOUS, PATIENT_NOT_FOUND, app, connect, get_db
+from backend.main import (
+    BOOKING_WINDOW_DAYS,
+    PATIENT_AMBIGUOUS,
+    PATIENT_NOT_FOUND,
+    SLOT_TAKEN,
+    app,
+    connect,
+    get_db,
+    get_now,
+)
 from backend.seed import seed
 
 # A fixed Monday keeps these tests independent of the day they run.
 FIRST_DAY = date(2026, 10, 26)
+# An hour before the first slots open, so every seeded slot is bookable.
+TEST_NOW = datetime(2026, 10, 26, 7, 0)
 PLATEAU_ID = 1  # locations are inserted in order: Plateau, Verdun, Saint-Laurent
 
 
@@ -32,8 +43,16 @@ def client(db_path: Path) -> Iterator[TestClient]:
             conn.close()
 
     app.dependency_overrides[get_db] = get_test_db
+    set_now(TEST_NOW)
     yield TestClient(app)
     app.dependency_overrides.clear()
+
+
+def set_now(moment: datetime) -> None:
+    """Make the app believe the current time is `moment`."""
+    # The lambda takes no arguments, so FastAPI calls it like get_now and
+    # gets back the moment captured here.
+    app.dependency_overrides[get_now] = lambda: moment
 
 
 def patient_id_with_phone(db_path: Path, phone: str) -> int:
@@ -234,3 +253,231 @@ def test_verify_two_identical_records_returns_409(client, db_path):
 def test_verify_invalid_date_of_birth_returns_422(client):
     response = verify(client, "Hélène Tremblay", "14/02/1979", "514-555-0142")
     assert response.status_code == 422
+
+
+# --- Appointments ---
+
+
+MARIE_PHONE = "514-555-0100"  # a seeded patient with a unique record
+HELENE_PHONE = "514-555-0142"  # a second patient, for "someone else" cases
+
+
+def book(client: TestClient, patient_id: int, slot_id: int, type_name: str):
+    return client.post(
+        "/appointments",
+        json={"patient_id": patient_id, "slot_id": slot_id, "type": type_name},
+    )
+
+
+def open_slots(client: TestClient, type_name: str, day: date) -> list[dict]:
+    """Return the Plateau's open slots for one appointment type on one day."""
+    slots = get_slots(client, PLATEAU_ID, type_name, day, day).json()
+    assert len(slots) >= 2, "these tests need at least two open slots"
+    return slots
+
+
+def open_slot_ids(client: TestClient, type_name: str, day: date) -> list[int]:
+    ids = []
+    for slot in get_slots(client, PLATEAU_ID, type_name, day, day).json():
+        ids.append(slot["id"])
+    return ids
+
+
+def book_first_open_cleaning(client: TestClient, db_path: Path) -> dict:
+    """Book the first open Plateau cleaning on FIRST_DAY and return it."""
+    patient_id = patient_id_with_phone(db_path, MARIE_PHONE)
+    slot = open_slots(client, "cleaning", FIRST_DAY)[0]
+    response = book(client, patient_id, slot["id"], "cleaning")
+    assert response.status_code == 201
+    return response.json()
+
+
+def start_of(slot: dict) -> datetime:
+    return datetime.fromisoformat(slot["start_time"])
+
+
+# --- POST /appointments ---
+
+
+def test_book_open_slot_creates_appointment_and_takes_slot(client, db_path):
+    patient_id = patient_id_with_phone(db_path, MARIE_PHONE)
+    slot = open_slots(client, "cleaning", FIRST_DAY)[0]
+
+    response = book(client, patient_id, slot["id"], "cleaning")
+
+    assert response.status_code == 201
+    appointment = response.json()
+    assert appointment["patient_id"] == patient_id
+    assert appointment["slot_id"] == slot["id"]
+    assert appointment["type"] == "cleaning"
+    assert appointment["status"] == "booked"
+    assert appointment["start_time"] == slot["start_time"]
+    assert slot["id"] not in open_slot_ids(client, "cleaning", FIRST_DAY)
+
+
+def test_book_same_slot_twice_returns_409(client, db_path):
+    first = book_first_open_cleaning(client, db_path)
+    other_patient_id = patient_id_with_phone(db_path, HELENE_PHONE)
+
+    response = book(client, other_patient_id, first["slot_id"], "cleaning")
+
+    assert response.status_code == 409
+    assert response.json() == {"detail": SLOT_TAKEN}
+
+
+def test_database_rejects_double_booking_that_skips_the_check(client, db_path, monkeypatch):
+    # Act out two requests that both passed check_slot_is_open at the same
+    # moment: with the check switched off, the unique index must still
+    # stop the second booking.
+    first = book_first_open_cleaning(client, db_path)
+    monkeypatch.setattr("backend.main.check_slot_is_open", lambda db, slot_id: None)
+    other_patient_id = patient_id_with_phone(db_path, HELENE_PHONE)
+
+    response = book(client, other_patient_id, first["slot_id"], "cleaning")
+
+    assert response.status_code == 409
+    assert response.json() == {"detail": SLOT_TAKEN}
+
+
+def test_book_past_slot_returns_422(client, db_path):
+    patient_id = patient_id_with_phone(db_path, MARIE_PHONE)
+    slot = open_slots(client, "cleaning", FIRST_DAY)[0]
+    set_now(start_of(slot) + timedelta(minutes=1))
+
+    response = book(client, patient_id, slot["id"], "cleaning")
+
+    assert response.status_code == 422
+    assert response.json() == {"detail": "That slot is in the past."}
+    assert slot["id"] in open_slot_ids(client, "cleaning", FIRST_DAY)
+
+
+def test_book_beyond_four_weeks_returns_422(client, db_path):
+    patient_id = patient_id_with_phone(db_path, MARIE_PHONE)
+    slot = open_slots(client, "cleaning", FIRST_DAY)[0]
+    # One minute earlier than "exactly four weeks before the slot".
+    four_weeks_before = start_of(slot) - timedelta(days=BOOKING_WINDOW_DAYS)
+    set_now(four_weeks_before - timedelta(minutes=1))
+
+    response = book(client, patient_id, slot["id"], "cleaning")
+
+    assert response.status_code == 422
+    assert "at most 28 days ahead" in response.json()["detail"]
+
+
+def test_book_exactly_four_weeks_ahead_is_allowed(client, db_path):
+    patient_id = patient_id_with_phone(db_path, MARIE_PHONE)
+    slot = open_slots(client, "cleaning", FIRST_DAY)[0]
+    set_now(start_of(slot) - timedelta(days=BOOKING_WINDOW_DAYS))
+
+    response = book(client, patient_id, slot["id"], "cleaning")
+
+    assert response.status_code == 201
+
+
+def test_book_checkup_in_hygienist_slot_returns_422(client, db_path):
+    patient_id = patient_id_with_phone(db_path, MARIE_PHONE)
+    cleaning_slot = open_slots(client, "cleaning", FIRST_DAY)[0]
+
+    response = book(client, patient_id, cleaning_slot["id"], "checkup")
+
+    assert response.status_code == 422
+
+
+def test_book_unknown_patient_returns_404(client):
+    slot = open_slots(client, "cleaning", FIRST_DAY)[0]
+    response = book(client, 999_999, slot["id"], "cleaning")
+    assert response.status_code == 404
+
+
+def test_book_unknown_slot_returns_404(client, db_path):
+    patient_id = patient_id_with_phone(db_path, MARIE_PHONE)
+    response = book(client, patient_id, 999_999, "cleaning")
+    assert response.status_code == 404
+
+
+# --- PATCH /appointments/{id} ---
+
+
+def test_reschedule_moves_appointment_and_frees_old_slot(client, db_path):
+    appointment = book_first_open_cleaning(client, db_path)
+    new_slot = open_slots(client, "cleaning", FIRST_DAY)[0]
+
+    response = client.patch(
+        f"/appointments/{appointment['id']}", json={"slot_id": new_slot["id"]}
+    )
+
+    assert response.status_code == 200
+    assert response.json()["slot_id"] == new_slot["id"]
+    assert response.json()["start_time"] == new_slot["start_time"]
+    still_open = open_slot_ids(client, "cleaning", FIRST_DAY)
+    assert appointment["slot_id"] in still_open
+    assert new_slot["id"] not in still_open
+
+
+def test_reschedule_to_taken_slot_returns_409(client, db_path):
+    appointment = book_first_open_cleaning(client, db_path)
+    other_slot = open_slots(client, "cleaning", FIRST_DAY)[0]
+    other_patient_id = patient_id_with_phone(db_path, HELENE_PHONE)
+    assert book(client, other_patient_id, other_slot["id"], "cleaning").status_code == 201
+
+    response = client.patch(
+        f"/appointments/{appointment['id']}", json={"slot_id": other_slot["id"]}
+    )
+
+    assert response.status_code == 409
+    assert response.json() == {"detail": SLOT_TAKEN}
+
+
+def test_reschedule_cancelled_appointment_returns_409(client, db_path):
+    appointment = book_first_open_cleaning(client, db_path)
+    client.delete(f"/appointments/{appointment['id']}", params={"reason": "Feeling unwell"})
+    new_slot = open_slots(client, "cleaning", FIRST_DAY)[0]
+
+    response = client.patch(
+        f"/appointments/{appointment['id']}", json={"slot_id": new_slot["id"]}
+    )
+
+    assert response.status_code == 409
+
+
+def test_reschedule_unknown_appointment_returns_404(client):
+    slot = open_slots(client, "cleaning", FIRST_DAY)[0]
+    response = client.patch("/appointments/999999", json={"slot_id": slot["id"]})
+    assert response.status_code == 404
+
+
+# --- DELETE /appointments/{id} ---
+
+
+def test_cancel_frees_slot_and_stores_reason(client, db_path):
+    appointment = book_first_open_cleaning(client, db_path)
+
+    response = client.delete(
+        f"/appointments/{appointment['id']}", params={"reason": "Scheduling conflict"}
+    )
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "cancelled"
+    assert response.json()["cancel_reason"] == "Scheduling conflict"
+    assert appointment["slot_id"] in open_slot_ids(client, "cleaning", FIRST_DAY)
+
+
+def test_cancel_twice_returns_409(client, db_path):
+    appointment = book_first_open_cleaning(client, db_path)
+    url = f"/appointments/{appointment['id']}"
+    client.delete(url, params={"reason": "Feeling unwell"})
+
+    response = client.delete(url, params={"reason": "Feeling unwell"})
+
+    assert response.status_code == 409
+
+
+def test_cancel_without_reason_returns_422(client, db_path):
+    appointment = book_first_open_cleaning(client, db_path)
+    response = client.delete(f"/appointments/{appointment['id']}")
+    assert response.status_code == 422
+
+
+def test_cancel_unknown_appointment_returns_404(client):
+    response = client.delete("/appointments/999999", params={"reason": "Travelling"})
+    assert response.status_code == 404

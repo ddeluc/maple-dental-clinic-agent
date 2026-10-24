@@ -6,7 +6,7 @@ Interactive docs: http://localhost:8000/docs
 
 import sqlite3
 from collections.abc import Iterator
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Annotated
 
@@ -23,6 +23,32 @@ PATIENT_AMBIGUOUS = (
     "More than one patient record matches that name, date of birth and phone"
     " number, so the patient can't be identified."
 )
+SLOT_TAKEN = "That slot is already booked."
+
+# The project definition allows bookings from now up to 4 weeks ahead.
+BOOKING_WINDOW_DAYS = 28
+
+# Everything the API returns about one appointment, plus the provider role
+# its type needs, which rescheduling uses to check the new slot.
+APPOINTMENT_QUERY = """
+    SELECT
+        appointments.id,
+        appointments.patient_id,
+        appointments.slot_id,
+        appointment_types.name AS type,
+        appointment_types.provider_role,
+        appointments.status,
+        appointments.cancel_reason,
+        slots.location_id,
+        providers.name AS provider_name,
+        slots.start_time,
+        slots.end_time
+    FROM appointments
+    JOIN appointment_types ON appointment_types.id = appointments.appointment_type_id
+    JOIN slots ON slots.id = appointments.slot_id
+    JOIN providers ON providers.id = slots.provider_id
+    WHERE appointments.id = ?
+"""
 
 # A slot is open when no booked appointment points to it (cancelled ones
 # don't count). Times are ISO 8601 text, which sorts and compares correctly
@@ -74,6 +100,29 @@ class VerifyResponse(BaseModel):
     patient_id: int
 
 
+class BookRequest(BaseModel):
+    patient_id: int
+    slot_id: int
+    type: str  # "cleaning" or "checkup"
+
+
+class RescheduleRequest(BaseModel):
+    slot_id: int
+
+
+class Appointment(BaseModel):
+    id: int
+    patient_id: int
+    slot_id: int
+    type: str
+    status: str
+    cancel_reason: str | None
+    location_id: int
+    provider_name: str
+    start_time: str
+    end_time: str
+
+
 def connect(db_path: Path) -> sqlite3.Connection:
     """Open a connection whose rows can be read by column name."""
     # FastAPI can run a dependency and its endpoint on different worker
@@ -94,6 +143,17 @@ def get_db() -> Iterator[sqlite3.Connection]:
 
 
 Database = Annotated[sqlite3.Connection, Depends(get_db)]
+
+
+def get_now() -> datetime:
+    """Return the current time, in the same clinic-local form as slot times."""
+    # A dependency instead of calling datetime.now() inside the endpoints,
+    # so tests can pin "now" and check the booking window on fixed seed data.
+    # This uses the server's clock, which must be set to Montreal time.
+    return datetime.now()
+
+
+Now = Annotated[datetime, Depends(get_now)]
 
 
 @app.get("/locations/{location_id}")
@@ -197,3 +257,179 @@ def verify_patient(request: VerifyRequest, db: Database) -> VerifyResponse:
     if len(matching_ids) > 1:
         raise HTTPException(status_code=409, detail=PATIENT_AMBIGUOUS)
     return VerifyResponse(patient_id=matching_ids[0])
+
+
+# --- Appointments: booking, rescheduling, cancelling ---
+
+
+def find_appointment_row(db: sqlite3.Connection, appointment_id: int) -> sqlite3.Row:
+    row = db.execute(APPOINTMENT_QUERY, (appointment_id,)).fetchone()
+    if row is None:
+        raise HTTPException(
+            status_code=404, detail=f"No appointment with id {appointment_id}."
+        )
+    return row
+
+
+def appointment_from_row(row: sqlite3.Row) -> Appointment:
+    return Appointment(
+        id=row["id"],
+        patient_id=row["patient_id"],
+        slot_id=row["slot_id"],
+        type=row["type"],
+        status=row["status"],
+        cancel_reason=row["cancel_reason"],
+        location_id=row["location_id"],
+        provider_name=row["provider_name"],
+        start_time=row["start_time"],
+        end_time=row["end_time"],
+    )
+
+
+def find_slot_row(db: sqlite3.Connection, slot_id: int) -> sqlite3.Row:
+    row = db.execute(
+        "SELECT slots.id, slots.start_time, providers.role AS provider_role"
+        " FROM slots JOIN providers ON providers.id = slots.provider_id"
+        " WHERE slots.id = ?",
+        (slot_id,),
+    ).fetchone()
+    if row is None:
+        raise HTTPException(status_code=404, detail=f"No slot with id {slot_id}.")
+    return row
+
+
+def check_booking_window(start_time: str, now: datetime) -> None:
+    """Refuse slots in the past or more than BOOKING_WINDOW_DAYS ahead."""
+    start = datetime.fromisoformat(start_time)
+    if start < now:
+        raise HTTPException(status_code=422, detail="That slot is in the past.")
+    latest_start = now + timedelta(days=BOOKING_WINDOW_DAYS)
+    if start > latest_start:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Appointments can be booked at most {BOOKING_WINDOW_DAYS} days ahead.",
+        )
+
+
+def check_slot_is_open(db: sqlite3.Connection, slot_id: int) -> None:
+    row = db.execute(
+        "SELECT 1 FROM appointments WHERE slot_id = ? AND status = 'booked'",
+        (slot_id,),
+    ).fetchone()
+    if row is not None:
+        raise HTTPException(status_code=409, detail=SLOT_TAKEN)
+
+
+def check_slot_can_be_booked(
+    db: sqlite3.Connection, slot: sqlite3.Row, provider_role: str, now: datetime
+) -> None:
+    """Run every check a slot must pass before an appointment can use it."""
+    # Cleanings are with hygienists and checkups with dentists, so a
+    # checkup can't be put in a hygienist's slot.
+    if slot["provider_role"] != provider_role:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Slot {slot['id']} is with a {slot['provider_role']},"
+            f" but this appointment needs a {provider_role}.",
+        )
+    check_booking_window(slot["start_time"], now)
+    check_slot_is_open(db, slot["id"])
+
+
+def write_slot_change(db: sqlite3.Connection, sql: str, parameters: tuple) -> sqlite3.Cursor:
+    """Run an insert or update that puts a booked appointment in a slot."""
+    # check_slot_is_open runs first, but two requests can both pass it before
+    # either one writes. The one_booking_per_slot index then rejects the
+    # second write, and that is reported the same way as the normal check.
+    try:
+        cursor = db.execute(sql, parameters)
+        db.commit()
+    except sqlite3.IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=409, detail=SLOT_TAKEN)
+    return cursor
+
+
+@app.post("/appointments", status_code=201)
+def book_appointment(request: BookRequest, db: Database, now: Now) -> Appointment:
+    """Book an open slot for a patient."""
+    patient_row = db.execute(
+        "SELECT id FROM patients WHERE id = ?", (request.patient_id,)
+    ).fetchone()
+    if patient_row is None:
+        raise HTTPException(
+            status_code=404, detail=f"No patient with id {request.patient_id}."
+        )
+
+    type_row = db.execute(
+        "SELECT id, provider_role FROM appointment_types WHERE name = ?",
+        (request.type,),
+    ).fetchone()
+    if type_row is None:
+        raise HTTPException(
+            status_code=404, detail=f"Unknown appointment type '{request.type}'."
+        )
+
+    slot = find_slot_row(db, request.slot_id)
+    check_slot_can_be_booked(db, slot, type_row["provider_role"], now)
+
+    cursor = write_slot_change(
+        db,
+        "INSERT INTO appointments"
+        " (patient_id, slot_id, appointment_type_id, status, created_at)"
+        " VALUES (?, ?, ?, 'booked', ?)",
+        (
+            request.patient_id,
+            request.slot_id,
+            type_row["id"],
+            now.isoformat(timespec="seconds"),
+        ),
+    )
+    return appointment_from_row(find_appointment_row(db, cursor.lastrowid))
+
+
+@app.patch("/appointments/{appointment_id}")
+def reschedule_appointment(
+    appointment_id: int, request: RescheduleRequest, db: Database, now: Now
+) -> Appointment:
+    """Move a booked appointment to another open slot."""
+    appointment = find_appointment_row(db, appointment_id)
+    if appointment["status"] != "booked":
+        raise HTTPException(
+            status_code=409, detail="A cancelled appointment can't be rescheduled."
+        )
+
+    new_slot = find_slot_row(db, request.slot_id)
+    check_slot_can_be_booked(db, new_slot, appointment["provider_role"], now)
+
+    # Changing slot_id is all it takes: the old slot has no booked
+    # appointment pointing to it any more, so GET /slots shows it as open.
+    write_slot_change(
+        db,
+        "UPDATE appointments SET slot_id = ? WHERE id = ?",
+        (request.slot_id, appointment_id),
+    )
+    return appointment_from_row(find_appointment_row(db, appointment_id))
+
+
+@app.delete("/appointments/{appointment_id}")
+def cancel_appointment(
+    appointment_id: int,
+    db: Database,
+    reason: Annotated[str, Query(min_length=1, description="Why the patient cancelled")],
+) -> Appointment:
+    """Cancel an appointment and record why, which frees its slot."""
+    appointment = find_appointment_row(db, appointment_id)
+    if appointment["status"] != "booked":
+        raise HTTPException(
+            status_code=409, detail="That appointment is already cancelled."
+        )
+
+    # The row is kept and marked cancelled rather than deleted, so the
+    # clinic keeps a history of cancellations and their reasons.
+    db.execute(
+        "UPDATE appointments SET status = 'cancelled', cancel_reason = ? WHERE id = ?",
+        (reason, appointment_id),
+    )
+    db.commit()
+    return appointment_from_row(find_appointment_row(db, appointment_id))
