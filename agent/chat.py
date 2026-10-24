@@ -6,18 +6,33 @@ Type a message and press Enter. Type "quit" or "exit" (or press Ctrl+C) to end.
 """
 
 import json
+import uuid
 from datetime import date, timedelta
 from typing import Any
 
 import httpx
 from dotenv import load_dotenv
-from openai import OpenAI
+from langfuse import get_client, propagate_attributes
+
+# Langfuse's drop-in replacement for the OpenAI client: it behaves the same,
+# and also records every model call (input, output, model, tokens, cost) as
+# a "generation" in Langfuse. Without Langfuse keys it just stays quiet.
+from langfuse.openai import OpenAI
 
 from agent.config import LANGUAGES, load_clinic_config, location_names
 from agent.tools import make_backend_client, run_tool, tool_definitions
 
 MODEL = "gpt-4o-mini"
 EXIT_WORDS = {"quit", "exit"}
+
+# Names Langfuse shows for each kind of step. Evaluators, dashboards and
+# saved filters find observations by name, so keep these stable.
+TURN_NAME = "answer-caller"
+DETECT_LANGUAGE_NAME = "detect-language"
+GENERATE_RESPONSE_NAME = "generate-response"
+# Tags are fixed when a trace starts. This one will tell text-chat traces
+# apart from phone calls once the voice agent exists.
+CHANNEL_TAG = "text-chat"
 
 # Each turn, the model may ask for tools a few times in a row (for example
 # Verdun's hours, then Plateau's). The cap stops a confused model from
@@ -63,6 +78,8 @@ def detect_language(client: OpenAI, detection_prompt: str, user_text: str) -> st
     # model, judging the language itself on every turn, was fooled by the
     # French greeting, French place names and English tool results.
     response = client.responses.create(
+        # `name` is read and removed by the Langfuse wrapper; OpenAI never sees it.
+        name=DETECT_LANGUAGE_NAME,
         model=MODEL,
         instructions=detection_prompt,
         input=user_text,
@@ -107,6 +124,7 @@ def ask_model(
     # The API keeps no memory between calls, so every call sends the full
     # history, including earlier tool calls and their results.
     return client.responses.create(
+        name=GENERATE_RESPONSE_NAME,  # for Langfuse, like in detect_language
         model=MODEL,
         instructions=instructions,
         input=history,
@@ -143,13 +161,32 @@ def run_tool_calls(
 
     for call in tool_calls:
         print(f"  [tool]   {call.name} {call.arguments}")
-        result = run_tool(backend, call.name, call.arguments)
+        result = trace_tool_call(backend, call)
         # ensure_ascii=False keeps "Côté" readable instead of "Côté".
         result_json = json.dumps(result, ensure_ascii=False)
         print(f"  [result] {result_json}")
         history.append(
             {"type": "function_call_output", "call_id": call.call_id, "output": result_json}
         )
+
+
+def trace_tool_call(backend: httpx.Client, call: Any) -> dict[str, Any]:
+    """Run one tool call inside a Langfuse "tool" observation."""
+    # The observation nests under the turn, next to the generation that
+    # asked for it, so the trace reads: generation, tool, generation.
+    with get_client().start_as_current_observation(
+        as_type="tool",
+        name=call.name,
+        input=call.arguments,
+        metadata={"call_id": call.call_id},
+    ) as observation:
+        result = run_tool(backend, call.name, call.arguments)
+        observation.update(output=result)
+        # Tools return errors as data, so nothing raises here. Marking the
+        # observation lets you filter Langfuse for turns where a tool failed.
+        if not result["ok"]:
+            observation.update(level="WARNING", status_message=result["error"])
+    return result
 
 
 def record_reply(history: list[Message], reply: str) -> str:
@@ -185,6 +222,38 @@ def take_turn(
     return record_reply(history, response.output_text)
 
 
+def answer_caller(
+    client: OpenAI,
+    backend: httpx.Client,
+    config: dict,
+    tools: list[dict[str, Any]],
+    history: list[Message],
+    language: str | None,
+    user_text: str,
+) -> tuple[str, str | None]:
+    """Answer one caller message. Returns the reply and the call's language."""
+    if language is None:
+        language = detect_language(client, config["language_detection_prompt"], user_text)
+        if language is not None:
+            print(f"  [language] {language}")
+
+    # Still unclear: answer with the fixed bilingual line from config
+    # instead of the model, which tended to answer in only one language.
+    # Recording both messages lets the model see them on later turns.
+    if language is None:
+        reply = config["unclear_language_reply"]
+        history.append({"role": "user", "content": user_text})
+        history.append({"role": "assistant", "content": reply})
+        return reply, None
+
+    system_prompt = prompt_for_language(config, language)
+    # Tags the turn and everything inside it with the call's language, so
+    # Langfuse can compare French and English calls.
+    with propagate_attributes(metadata={"language": language}):
+        reply = take_turn(client, backend, system_prompt, tools, history, user_text)
+    return reply, language
+
+
 def run_chat(client: OpenAI, backend: httpx.Client, config: dict) -> None:
     # The greeting comes from config instead of the model, so "Bonjour, hi"
     # is guaranteed to be the first thing the caller hears. It goes into the
@@ -195,6 +264,9 @@ def run_chat(client: OpenAI, backend: httpx.Client, config: dict) -> None:
     # None until a caller message is clearly French or English. After that
     # it never changes, so the whole call stays in one language.
     language = None
+    # Each turn is its own Langfuse trace. They all share this session id,
+    # so Langfuse's Sessions view can replay the whole call in order.
+    session_id = str(uuid.uuid4())
     print(f"Agent: {greeting}")
 
     while True:
@@ -209,36 +281,39 @@ def run_chat(client: OpenAI, backend: httpx.Client, config: dict) -> None:
         if not user_text:  # an accidental Enter shouldn't cost an API call
             continue
 
-        if language is None:
-            language = detect_language(client, config["language_detection_prompt"], user_text)
-            if language is not None:
-                print(f"  [language] {language}")
-
-        # Still unclear: answer with the fixed bilingual line from config
-        # instead of the model, which tended to answer in only one language.
-        # Recording both messages lets the model see them on later turns.
-        if language is None:
-            reply = config["unclear_language_reply"]
-            history.append({"role": "user", "content": user_text})
-            history.append({"role": "assistant", "content": reply})
-            print(f"Agent: {reply}")
-            continue
-
-        system_prompt = prompt_for_language(config, language)
-        reply = take_turn(client, backend, system_prompt, tools, history, user_text)
+        # propagate_attributes wraps the turn's root observation so the
+        # session id and tag reach it and every observation inside it.
+        # The root's input and output are what the caller said and what the
+        # agent replied: the trace's summary in Langfuse's trace list. Its
+        # duration is the turn's response time.
+        with propagate_attributes(session_id=session_id, tags=[CHANNEL_TAG]):
+            with get_client().start_as_current_observation(
+                as_type="agent", name=TURN_NAME, input=user_text
+            ) as turn:
+                reply, language = answer_caller(
+                    client, backend, config, tools, history, language, user_text
+                )
+                turn.update(output=reply)
         print(f"Agent: {reply}")
 
 
 def main() -> None:
-    load_dotenv()  # copies OPENAI_API_KEY from .env into the environment
+    # Before anything uses Langfuse: the Langfuse client reads its keys
+    # from the environment when it's first used, inside run_chat.
+    load_dotenv()  # copies the OpenAI and Langfuse keys from .env into the environment
     config = load_clinic_config()
     client = OpenAI()
-    # "with" closes the backend connection when the chat ends, even on Ctrl+C.
-    with make_backend_client() as backend:
-        try:
-            run_chat(client, backend, config)
-        except KeyboardInterrupt:  # Ctrl+C, even while waiting for the model
-            print()
+    try:
+        # "with" closes the backend connection when the chat ends, even on Ctrl+C.
+        with make_backend_client() as backend:
+            try:
+                run_chat(client, backend, config)
+            except KeyboardInterrupt:  # Ctrl+C, even while waiting for the model
+                print()
+    finally:
+        # Langfuse sends traces in background batches. Flushing sends the
+        # last ones before the program exits, or the final turns would be lost.
+        get_client().flush()
 
 
 if __name__ == "__main__":

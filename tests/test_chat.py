@@ -1,4 +1,5 @@
 import json
+from contextlib import contextmanager
 from datetime import date
 from pathlib import Path
 from types import SimpleNamespace
@@ -7,12 +8,14 @@ import httpx
 import pytest
 
 from agent.chat import (
+    CHANNEL_TAG,
     MAX_TOOL_ROUNDS,
     build_instructions,
     detect_language,
     prompt_for_language,
     run_chat,
     take_turn,
+    trace_tool_call,
 )
 from agent.config import load_clinic_config, location_names
 
@@ -309,3 +312,138 @@ def test_run_chat_detects_again_until_the_language_is_clear(monkeypatch, capsys)
         "role": "assistant",
         "content": config["unclear_language_reply"],
     }
+
+
+# --- Langfuse tracing ---
+
+
+class FakeObservation:
+    def __init__(self, fields: dict) -> None:
+        self.fields = fields
+
+    def update(self, **fields) -> None:
+        self.fields.update(fields)
+
+
+class FakeLangfuse:
+    """Stands in for the Langfuse client, so tests never send traces.
+
+    It records each observation's fields, plus "parent": the name of the
+    observation it was started inside, or None for a trace's root.
+    """
+
+    def __init__(self) -> None:
+        self.observations: list[dict] = []
+        self.open_names: list[str] = []
+
+    @contextmanager
+    def start_as_current_observation(self, **fields):
+        fields["parent"] = self.open_names[-1] if self.open_names else None
+        self.observations.append(fields)
+        self.open_names.append(fields["name"])
+        try:
+            yield FakeObservation(fields)
+        finally:
+            self.open_names.pop()
+
+
+@pytest.fixture
+def langfuse(monkeypatch) -> FakeLangfuse:
+    fake = FakeLangfuse()
+    monkeypatch.setattr("agent.chat.get_client", lambda: fake)
+    return fake
+
+
+@pytest.fixture
+def propagated(monkeypatch) -> list[dict]:
+    """Record what each propagate_attributes call in agent.chat was given."""
+    recorded = []
+
+    @contextmanager
+    def fake_propagate_attributes(**attributes):
+        recorded.append(attributes)
+        yield
+
+    monkeypatch.setattr("agent.chat.propagate_attributes", fake_propagate_attributes)
+    return recorded
+
+
+def test_run_chat_traces_the_turn_with_the_tool_call_inside(monkeypatch, langfuse):
+    config = load_clinic_config()
+    type_lines(monkeypatch, ["Where do I park in Verdun?"])
+    client = FakeClient(
+        [
+            language_response("english"),
+            tool_call_response("get_clinic_info", {"location": "Verdun", "topic": "parking"}),
+            text_response("There's a free lot behind the building."),
+        ]
+    )
+
+    run_chat(client, fake_backend(clinic_info_handler), config)
+
+    turn, tool = langfuse.observations
+    assert turn["as_type"] == "agent"
+    assert turn["name"] == "answer-caller"
+    assert turn["parent"] is None
+    assert turn["input"] == "Where do I park in Verdun?"
+    assert turn["output"] == "There's a free lot behind the building."
+    assert tool["as_type"] == "tool"
+    assert tool["name"] == "get_clinic_info"
+    assert tool["parent"] == "answer-caller"
+    assert json.loads(tool["input"]) == {"location": "Verdun", "topic": "parking"}
+    assert tool["output"]["details"] == "Free lot behind the building."
+    assert "level" not in tool
+    # The Langfuse wrapper names each model call's generation from this.
+    names = [call["name"] for call in client.responses.calls]
+    assert names == ["detect-language", "generate-response", "generate-response"]
+
+
+def test_every_turn_of_a_call_shares_one_session(monkeypatch, langfuse, propagated):
+    config = load_clinic_config()
+    type_lines(monkeypatch, ["Hi, I'd like a cleaning.", "In Verdun, please."])
+    client = FakeClient(
+        [
+            language_response("english"),
+            text_response("Sure! Which location would you prefer?"),
+            text_response("Great, let me check Verdun."),
+        ]
+    )
+
+    run_chat(client, fake_backend(clinic_info_handler), config)
+
+    first_turn, first_language, second_turn, second_language = propagated
+    assert first_turn["tags"] == [CHANNEL_TAG]
+    assert first_turn["session_id"] == second_turn["session_id"]
+    assert first_language == {"metadata": {"language": "english"}}
+    assert second_language == {"metadata": {"language": "english"}}
+
+
+def test_each_call_gets_its_own_session(monkeypatch, langfuse, propagated):
+    config = load_clinic_config()
+    for _call in range(2):
+        type_lines(monkeypatch, ["Hi, I'd like a cleaning."])
+        client = FakeClient([language_response("english"), text_response("Sure!")])
+        run_chat(client, fake_backend(clinic_info_handler), config)
+
+    session_ids = []
+    for attributes in propagated:
+        if "session_id" in attributes:
+            session_ids.append(attributes["session_id"])
+    assert len(session_ids) == 2
+    assert session_ids[0] != session_ids[1]
+
+
+def test_failed_tool_call_is_marked_as_a_warning(langfuse):
+    def backend_down(request: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError("connection refused")
+
+    call = tool_call_response("get_clinic_info", {"location": "Verdun", "topic": "hours"}).output[0]
+
+    result = trace_tool_call(fake_backend(backend_down), call)
+
+    assert result["ok"] is False
+    (tool,) = langfuse.observations
+    assert tool["level"] == "WARNING"
+    assert tool["status_message"] == result["error"]
+    assert tool["output"] == result
+    assert tool["metadata"] == {"call_id": "call_1"}
