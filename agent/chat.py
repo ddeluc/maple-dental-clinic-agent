@@ -49,14 +49,17 @@ CALENDAR_DAYS = 14
 Message = dict[str, str]
 
 
-def build_instructions(system_prompt: str, today: date) -> str:
-    # The model doesn't know today's date, and without it can't turn
-    # "next week" or "next Tuesday" into the dates check_availability needs.
-    # Even with today's date it often gets the arithmetic wrong, so the
-    # code works out next week and a short calendar, and the model only
-    # has to look a day up.
+def first_day_of_next_week(today: date) -> date:
+    """The Monday after today, even when today is a Monday."""
     days_until_next_monday = 7 - today.weekday()  # weekday(): Monday is 0
-    next_monday = today + timedelta(days=days_until_next_monday)
+    return today + timedelta(days=days_until_next_monday)
+
+
+def describe_dates(today: date) -> str:
+    """Today, next week and a short calendar, as the agent is told them."""
+    # The evals give their judges this same text, so a judge reads "next
+    # Thursday" exactly the way the agent was told to.
+    next_monday = first_day_of_next_week(today)
     next_sunday = next_monday + timedelta(days=6)
 
     coming_days = []
@@ -65,11 +68,19 @@ def build_instructions(system_prompt: str, today: date) -> str:
         coming_days.append(f"{day.strftime('%A')} {day.isoformat()}")
 
     return (
-        f"{system_prompt}\n"
         f"Today is {today.strftime('%A')}, {today.isoformat()}. "
         f"Next week is {next_monday.isoformat()} to {next_sunday.isoformat()}.\n"
         f"The coming days are: {', '.join(coming_days)}."
     )
+
+
+def build_instructions(system_prompt: str, today: date) -> str:
+    # The model doesn't know today's date, and without it can't turn
+    # "next week" or "next Tuesday" into the dates check_availability needs.
+    # Even with today's date it often gets the arithmetic wrong, so the
+    # code works out next week and a short calendar, and the model only
+    # has to look a day up.
+    return f"{system_prompt}\n{describe_dates(today)}"
 
 
 def detect_language(client: OpenAI, detection_prompt: str, user_text: str) -> str | None:

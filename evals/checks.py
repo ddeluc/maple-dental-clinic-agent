@@ -10,6 +10,26 @@ from typing import Any
 CheckResult = dict[str, Any]
 
 
+def combine_turn_verdicts(turn_verdicts: list[CheckResult]) -> CheckResult | None:
+    """One case result from per-turn verdicts: it passes if every turn passed.
+
+    Each verdict has "passed", "reason" and "turn". None means no turn was
+    scored, so the score doesn't apply to the case.
+    """
+    if not turn_verdicts:
+        return None
+
+    failures = []
+    for verdict in turn_verdicts:
+        if not verdict["passed"]:
+            failures.append(f"turn {verdict['turn']}: {verdict['reason']}")
+    # Each turn's verdict is kept, so a reviewer can see why every turn passed
+    # or failed, not only the case's result.
+    if failures:
+        return {"passed": False, "reason": " | ".join(failures), "turns": turn_verdicts}
+    return {"passed": True, "reason": "every turn passed", "turns": turn_verdicts}
+
+
 def check_language_detected(
     case: dict[str, Any], turn_results: list[dict[str, Any]]
 ) -> CheckResult:

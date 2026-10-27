@@ -190,7 +190,9 @@
         Plateau is open Saturdays from 9 a.m. to 1 p.m.
 
 - id: bluecross-french-insurer
-  description: An insurer asked about by its French name.
+  description: >-
+    An insurer asked about by its French name, then an explicit request to
+    switch to English in the same message as a question.
   language: french
   turns:
     - caller: "Bonjour, est-ce que vous acceptez la Croix Bleue?"
@@ -200,11 +202,12 @@
       expected_behaviour: >-
         Says yes, Blue Cross (Croix Bleue) is accepted.
     - caller: "Sorry, can we do this in English? Where is the Verdun clinic?"
+      reply_language: english
       expected_tools:
         - name: get_clinic_info
           arguments: {location: Verdun, topic: address}
       expected_behaviour: >-
-        Replies in French with the Verdun address, 4455 rue Wellington.
+        Replies in English with the Verdun address, 4455 rue Wellington.
 
 - id: unclear-then-french
   description: A first message too short to tell, then a clear French one.

@@ -1,8 +1,10 @@
 import json
+from datetime import date
 
-from agent.config import LANGUAGES, load_clinic_config
-from agent.tools import TOOL_FUNCTIONS
+from agent.config import LANGUAGES, load_clinic_config, location_names
+from agent.tools import APPOINTMENT_TYPES, TOOL_FUNCTIONS
 from evals import run
+from evals.availability import resolve_request
 from evals.checks import check_language_detected, check_tool_use
 from evals.run import load_cases, run_case, score_case, tool_calls_from
 
@@ -29,6 +31,7 @@ def turn_result(language: str | None, tool_calls: list[dict] | None = None) -> d
 
 def test_every_case_is_well_formed():
     # A typo in cases.yaml should fail here, not halfway through a paid run.
+    config = load_clinic_config()
     case_ids = set()
     for case in load_cases():
         assert case["id"] not in case_ids, f"duplicate id {case['id']}"
@@ -43,6 +46,12 @@ def test_every_case_is_well_formed():
                 assert turn["reply_language"] in LANGUAGES
             for expected_tool in turn.get("expected_tools", []):
                 assert expected_tool["name"] in TOOL_FUNCTIONS
+            if "availability" in turn:
+                availability = turn["availability"]
+                assert availability["location"] in location_names(config)
+                assert availability["appointment_type"] in APPOINTMENT_TYPES
+                # Raises on a day word the runner can't turn into a date.
+                resolve_request(availability, date(2026, 10, 27))
 
 
 # --- tool_calls_from ---

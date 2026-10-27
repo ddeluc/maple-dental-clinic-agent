@@ -8,10 +8,12 @@ uv run python -m backend.seed, then uv run uvicorn backend.main:app
 import json
 import os
 import uuid
+from datetime import date
 from pathlib import Path
 from typing import Any
 
 import httpx
+import openai
 import yaml
 from dotenv import load_dotenv
 from langfuse import get_client
@@ -20,7 +22,10 @@ from langfuse.openai import OpenAI
 from agent.chat import Message, answer_and_trace
 from agent.config import load_clinic_config, location_names
 from agent.tools import make_backend_client, tool_definitions
+from backend.seed import DB_PATH
+from evals.availability import check_availability_case
 from evals.checks import CheckResult, check_language_detected, check_tool_use
+from evals.judges import judge_case, load_judge_prompts
 
 CASES_PATH = Path(__file__).parent / "cases.yaml"
 
@@ -93,11 +98,35 @@ def run_case(
 def score_case(
     case: dict[str, Any], turn_results: list[dict[str, Any]]
 ) -> dict[str, CheckResult]:
-    """Run every check on one case. Checks that don't apply are left out."""
+    """Run every code check on one case. Checks that don't apply are left out."""
     scores = {"language-detected": check_language_detected(case, turn_results)}
     tool_use = check_tool_use(case, turn_results)
     if tool_use is not None:
         scores["correct-tool-use"] = tool_use
+    return scores
+
+
+def judge_scores(
+    judge_client: openai.OpenAI,
+    prompts: dict[str, str],
+    config: dict[str, Any],
+    case: dict[str, Any],
+    turn_results: list[dict[str, Any]],
+    today: date,
+) -> dict[str, CheckResult]:
+    """Run every score that needs the judge model on one case."""
+    scores = judge_case(judge_client, prompts, case, turn_results, config["greeting"], today)
+    availability = check_availability_case(
+        judge_client,
+        prompts["extract_offered_times"],
+        case,
+        turn_results,
+        location_names(config),
+        today,
+        DB_PATH,
+    )
+    if availability is not None:
+        scores["availability-correct"] = availability
     return scores
 
 
@@ -136,8 +165,17 @@ def main() -> None:
     os.environ["LANGFUSE_TRACING_ENVIRONMENT"] = EVAL_ENVIRONMENT
     config = load_clinic_config()
     client = OpenAI()
+    # The judges use the plain OpenAI client, not Langfuse's: each judge
+    # call would otherwise be its own trace, mixed in with the agent's.
+    # Part 5 of the eval plan sends the scores to Langfuse instead.
+    judge_client = openai.OpenAI()
+    prompts = load_judge_prompts()
     tools = tool_definitions(location_names(config))
     cases = load_cases()
+    # The date the judges and the availability check use. The agent reads
+    # the date itself on every turn, so a run across midnight would judge
+    # it against the wrong calendar.
+    today = date.today()
 
     all_scores = []
     try:
@@ -145,6 +183,9 @@ def main() -> None:
             for case in cases:
                 turn_results = run_case(client, backend, config, tools, case)
                 scores = score_case(case, turn_results)
+                scores.update(
+                    judge_scores(judge_client, prompts, config, case, turn_results, today)
+                )
                 print_case(case, turn_results, scores)
                 all_scores.append(scores)
         print_summary(all_scores)

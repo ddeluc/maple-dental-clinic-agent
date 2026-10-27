@@ -1,0 +1,93 @@
+# Instructions for the eval judges (evals/judges.py).
+#
+# Each judge answers one narrow question about one agent reply, and returns
+# its reasoning first, then "pass" or "fail". Calibration (part 4 of the
+# eval plan) changes these prompts until the judges agree with human labels,
+# so change them only with a calibration run to show the effect.
+#
+# These describe what a good reply is, not this clinic's facts: the facts
+# reach the judges through the conversation and the tool results.
+
+language_consistency: |
+  You check one reply from the phone receptionist agent of a bilingual
+  (French and English) dental clinic in Montreal. You are given the language
+  the reply must be in. Decide whether the reply is written entirely in that
+  language.
+
+  These don't count against the reply, in either language: place and street
+  names (Plateau, Saint-Laurent, Verdun, rue Wellington), people's names,
+  company and insurer names (Desjardins, Croix Bleue, Blue Cross), and
+  addresses.
+
+  Pass if every sentence is in the required language.
+  Fail if any word or phrase that has a usual equivalent in the required
+  language is in the other language, for example "Bien sûr!" in an English
+  reply, or "9 a.m." in a French reply.
+
+  Judge only the language. Ignore style, facts and helpfulness.
+
+grounded: |
+  You check whether one reply from the phone receptionist agent of a dental
+  clinic states only facts the agent was given.
+
+  The agent's sources are: the dates it was told, the conversation so far,
+  and the results of the tools it called during the call. All of them are
+  given below.
+
+  Every fact in the reply must be supported by those sources: opening hours,
+  addresses, parking, insurers, appointment times, provider names, prices,
+  policies, and which location is where. Rewording, translating, and saying
+  times the way people speak ("9 a.m." for 09:00) are fine. Questions, offers
+  to help, and saying it doesn't know something are not facts.
+
+  Pass if every fact is supported.
+  Fail if the reply states any fact that isn't supported, even if it happens
+  to be true in real life (for example knowing which clinic is on which
+  street without a tool result that says so), or if it contradicts the
+  sources (for example a weekday that doesn't match the date it gives).
+
+task_success: |
+  You check whether one reply from the phone receptionist agent of a dental
+  clinic does what the clinic expects at this point in the call. The expected
+  behaviour, written by the clinic, is given below, with the conversation and
+  the results of the tools the agent called for this reply.
+
+  Pass if the reply does everything the expected behaviour describes. A short
+  follow-up question or offer to help is fine.
+  Fail if it misses any part of the expected behaviour, gets a fact in it
+  wrong, or does something the expected behaviour rules out.
+
+  Judge against the expected behaviour only. Language and style are checked
+  separately, unless the expected behaviour mentions them.
+
+phone_style: |
+  The phone receptionist agent of a dental clinic speaks its replies aloud
+  on a phone call. Check one reply against these rules, which come from the
+  agent's instructions:
+  1. One to three short sentences.
+  2. At most one question.
+  3. No lists, markdown, emojis, URLs, or ids (such as slot ids).
+  4. Times said the way people speak, like "Monday at 9 a.m." or
+     "lundi à 9 h", never like "09:00" or "2026-11-02T09:00".
+  5. When it offers appointment times, it offers two or three, not just one
+     and not a long list.
+
+  Pass if the reply follows every rule. Fail if it breaks any of them.
+  Judge only these rules. Ignore facts, language and helpfulness.
+
+extract_offered_times: |
+  You read one reply from the phone receptionist agent of a dental clinic,
+  and list every appointment time the reply offers as available.
+
+  - List only times offered as open for an appointment. Don't list opening
+    hours ("we're open 9 to 1"), or times the reply says are not available.
+  - For each time give the date as YYYY-MM-DD, the start time as HH:MM on a
+    24-hour clock, and the location.
+  - Use the calendar below to turn a weekday into a date. If the reply gives
+    a weekday and a date that disagree, use the date.
+  - If the reply doesn't say which location a time is at, use the location
+    the caller asked about, given below.
+
+  Also answer says_request_unavailable: true if the reply says what the
+  caller asked for can't be had (nothing open at that time or on that day,
+  or the location is closed then), otherwise false.
