@@ -254,6 +254,36 @@ def answer_caller(
     return reply, language
 
 
+def answer_and_trace(
+    client: OpenAI,
+    backend: httpx.Client,
+    config: dict,
+    tools: list[dict[str, Any]],
+    history: list[Message],
+    language: str | None,
+    user_text: str,
+    session_id: str,
+) -> tuple[str, str | None]:
+    """Answer one caller message as one Langfuse trace in the call's session."""
+    # Shared by the chat loop and the evals, so eval runs are traced the
+    # same way as real conversations.
+    #
+    # propagate_attributes wraps the turn's root observation so the
+    # session id and tag reach it and every observation inside it.
+    # The root's input and output are what the caller said and what the
+    # agent replied: the trace's summary in Langfuse's trace list. Its
+    # duration is the turn's response time.
+    with propagate_attributes(session_id=session_id, tags=[CHANNEL_TAG]):
+        with get_client().start_as_current_observation(
+            as_type="agent", name=TURN_NAME, input=user_text
+        ) as turn:
+            reply, language = answer_caller(
+                client, backend, config, tools, history, language, user_text
+            )
+            turn.update(output=reply)
+    return reply, language
+
+
 def run_chat(client: OpenAI, backend: httpx.Client, config: dict) -> None:
     # The greeting comes from config instead of the model, so "Bonjour, hi"
     # is guaranteed to be the first thing the caller hears. It goes into the
@@ -262,7 +292,9 @@ def run_chat(client: OpenAI, backend: httpx.Client, config: dict) -> None:
     history: list[Message] = [{"role": "assistant", "content": greeting}]
     tools = tool_definitions(location_names(config))
     # None until a caller message is clearly French or English. After that
-    # it never changes, so the whole call stays in one language.
+    # it never changes: it's the language the call started in. If the
+    # caller explicitly asks to switch, the language rule in the prompt
+    # tells the model to follow the request.
     language = None
     # Each turn is its own Langfuse trace. They all share this session id,
     # so Langfuse's Sessions view can replay the whole call in order.
@@ -281,19 +313,9 @@ def run_chat(client: OpenAI, backend: httpx.Client, config: dict) -> None:
         if not user_text:  # an accidental Enter shouldn't cost an API call
             continue
 
-        # propagate_attributes wraps the turn's root observation so the
-        # session id and tag reach it and every observation inside it.
-        # The root's input and output are what the caller said and what the
-        # agent replied: the trace's summary in Langfuse's trace list. Its
-        # duration is the turn's response time.
-        with propagate_attributes(session_id=session_id, tags=[CHANNEL_TAG]):
-            with get_client().start_as_current_observation(
-                as_type="agent", name=TURN_NAME, input=user_text
-            ) as turn:
-                reply, language = answer_caller(
-                    client, backend, config, tools, history, language, user_text
-                )
-                turn.update(output=reply)
+        reply, language = answer_and_trace(
+            client, backend, config, tools, history, language, user_text, session_id
+        )
         print(f"Agent: {reply}")
 
 

@@ -39,7 +39,8 @@ An AI phone agent that answers a dental clinic's scheduling line in French or En
 
 ### Language
 - Greet in French first: "Bonjour, hi".
-- The caller's first message sets the language for the whole call. If the caller later speaks the other language, keep the call's language.
+- The caller's first message sets the language for the call. If the caller later speaks the other language, keep the call's language.
+- Switch only if the caller explicitly asks to (for example "Can we speak English?"), then keep the new language for the rest of the call.
 - Transfer summaries are written in the caller's language.
 
 ## 3. Agent tools
@@ -62,7 +63,7 @@ Tools return errors as data the LLM can read, for example `{"ok": false, "error"
 |---|---|---|
 | Task success | 85% or more of in-scope eval calls end correctly | Evals |
 | Correct escalation | 100% of emergency calls transferred to `urgent`; under 10% unnecessary transfers | Evals |
-| Language handling | Replies in the language set by the caller's first message 100% of the time, including when the caller later speaks the other language | Evals |
+| Language handling | Replies in the language set by the caller's first message 100% of the time, including when the caller later speaks the other language, and in the requested language after an explicit request to switch | Evals |
 | Latency | p50 response under 1 second, p95 under 2 seconds | Real call logs |
 
 ## 5. Tech stack

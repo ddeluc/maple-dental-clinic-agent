@@ -1,0 +1,264 @@
+# Eval cases for the Maple Dental text agent.
+#
+# Each case is a scripted call: the caller's messages, sent one at a time,
+# and what a good agent does after each one. The runner feeds them through
+# the real agent (answer_caller) against a freshly seeded backend, then the
+# code checks and the judges score every reply.
+#
+# Fields
+#   id            Stable name. Langfuse uses it to line runs up, so don't rename.
+#   description   What the case is testing, for humans.
+#   language      The call's language once it's chosen: french or english.
+#   turns         One entry per caller message:
+#     caller              What the caller says.
+#     unclear             true if this message alone shouldn't fix the language.
+#                         The reply must then be the fixed bilingual line.
+#     reply_language      The language this reply must be in, when it differs
+#                         from the call's language: only after the caller
+#                         explicitly asked to switch.
+#     expected_tools      Tools the agent must call this turn. Only the listed
+#                         arguments are compared, so dates can be left out.
+#     availability        The slots the caller asked for. Scored by
+#                         availability-correct against the database.
+#       location, appointment_type
+#       first_day, last_day   "tomorrow", or "next monday" ... "next sunday",
+#                             meaning that day of next week (the same "next
+#                             week" the agent's instructions define).
+#       earliest_start, latest_start   Optional "HH:MM" limits on start times.
+#     expected_behaviour  What a good reply does, in plain words. task-success
+#                         compares the reply with this.
+#
+# Dates are relative because the seed creates slots from the day it runs.
+# All content is made up; there are no real patients here.
+
+- id: en-verdun-saturday-hours
+  description: A closed day. The agent should point to the location that is open.
+  language: english
+  turns:
+    - caller: "Are you open on Saturdays at the Verdun clinic?"
+      expected_tools:
+        - name: get_clinic_info
+          arguments: {location: Verdun, topic: hours}
+      expected_behaviour: >-
+        Says Verdun is closed on Saturdays, and offers the Plateau location,
+        which is open Saturdays from 9 a.m. to 1 p.m.
+
+- id: fr-plateau-address-then-parking
+  description: Two clinic facts in a row, in French.
+  language: french
+  turns:
+    - caller: "Bonjour, quelle est l'adresse de la clinique du Plateau?"
+      expected_tools:
+        - name: get_clinic_info
+          arguments: {location: Plateau, topic: address}
+      expected_behaviour: >-
+        Gives the address, 4120 rue Saint-Denis.
+    - caller: "Et pour le stationnement?"
+      expected_tools:
+        - name: get_clinic_info
+          arguments: {location: Plateau, topic: parking}
+      expected_behaviour: >-
+        Says there is paid street parking on rue Saint-Denis and that the
+        Mont-Royal metro is a five-minute walk away.
+
+- id: en-insurers-accepted-and-not
+  description: One insurer on the list, then one that isn't.
+  language: english
+  turns:
+    - caller: "Hi, do you accept Desjardins insurance?"
+      expected_tools:
+        - name: get_clinic_info
+          arguments: {location: null, topic: insurers}
+      expected_behaviour: >-
+        Says yes, Desjardins Insurance is accepted.
+    - caller: "And Industrial Alliance?"
+      expected_behaviour: >-
+        Says Industrial Alliance is not on the list of accepted insurers,
+        without claiming anything else about it. It may name the insurers
+        that are accepted.
+
+- id: fr-saint-laurent-parking
+  description: A single clinic fact in French.
+  language: french
+  turns:
+    - caller: "Est-ce qu'il y a du stationnement à la clinique de Saint-Laurent?"
+      expected_tools:
+        - name: get_clinic_info
+          arguments: {location: Saint-Laurent, topic: parking}
+      expected_behaviour: >-
+        Says there is free underground parking in the building, on level P1.
+
+- id: en-plateau-cleaning-next-week
+  description: A plain availability request over a whole week.
+  language: english
+  turns:
+    - caller: "I'd like to book a cleaning at the Plateau clinic next week."
+      expected_tools:
+        - name: check_availability
+          arguments: {location: Plateau, appointment_type: cleaning}
+      availability:
+        location: Plateau
+        appointment_type: cleaning
+        first_day: next monday
+        last_day: next sunday
+      expected_behaviour: >-
+        Offers two or three open cleaning times next week, said the way
+        people speak (for example "Monday at 9 a.m."), and asks which one
+        works.
+
+- id: fr-verdun-checkup-thursday-afternoon
+  description: >-
+    A narrow request: one day, afternoon only. The tool returns only the
+    earliest 20 slots of a day, so this also tests whether the agent invents
+    afternoon times it never saw.
+  language: french
+  turns:
+    - caller: "J'aimerais un examen à Verdun le jeudi de la semaine prochaine, en après-midi."
+      expected_tools:
+        - name: check_availability
+          arguments: {location: Verdun, appointment_type: checkup}
+      availability:
+        location: Verdun
+        appointment_type: checkup
+        first_day: next thursday
+        last_day: next thursday
+        earliest_start: "12:00"
+      expected_behaviour: >-
+        Offers two or three open checkup times on that Thursday afternoon,
+        or, if it has none it can confirm, says so and offers the closest
+        times it does have. Never offers a time it didn't get from the
+        availability results.
+
+- id: en-saint-laurent-cleaning-at-1030
+  description: >-
+    A time that can't exist: cleanings are 60 minutes and start on the hour.
+    The agent should offer the nearest real times instead.
+  language: english
+  turns:
+    - caller: "Can I get a cleaning at Saint-Laurent next Wednesday at 10:30?"
+      expected_tools:
+        - name: check_availability
+          arguments: {location: Saint-Laurent, appointment_type: cleaning}
+      availability:
+        location: Saint-Laurent
+        appointment_type: cleaning
+        first_day: next wednesday
+        last_day: next wednesday
+        earliest_start: "10:30"
+        latest_start: "10:30"
+      expected_behaviour: >-
+        Says 10:30 isn't available, and offers the closest open cleaning
+        times, such as earlier or later that same Wednesday.
+
+- id: en-verdun-cleaning-saturday
+  description: Availability on a day the location is closed.
+  language: english
+  turns:
+    - caller: "Could I come in for a cleaning at Verdun on the Saturday of next week?"
+      availability:
+        location: Verdun
+        appointment_type: cleaning
+        first_day: next saturday
+        last_day: next saturday
+      expected_behaviour: >-
+        Says Verdun is closed on Saturdays, and offers either open Saturday
+        cleaning times at Plateau or open weekday times at Verdun.
+
+- id: en-cleaning-price
+  description: A question no tool can answer. The agent must not invent a price.
+  language: english
+  turns:
+    - caller: "How much does a cleaning cost?"
+      expected_behaviour: >-
+        Says honestly that it doesn't have pricing information, without
+        giving or estimating any price. It may offer to help with something
+        else, such as booking.
+
+- id: switch-english-to-french
+  description: The caller switches to French. The call stays in English.
+  language: english
+  turns:
+    - caller: "Hi, what are your hours at Saint-Laurent?"
+      expected_tools:
+        - name: get_clinic_info
+          arguments: {location: Saint-Laurent, topic: hours}
+      expected_behaviour: >-
+        Says Saint-Laurent is open Monday to Friday, 8 a.m. to 5 p.m.
+    - caller: "Merci! Et le samedi?"
+      expected_behaviour: >-
+        Replies in English: Saint-Laurent is closed on Saturdays, and
+        Plateau is open Saturdays from 9 a.m. to 1 p.m.
+
+- id: bluecross-french-insurer
+  description: An insurer asked about by its French name.
+  language: french
+  turns:
+    - caller: "Bonjour, est-ce que vous acceptez la Croix Bleue?"
+      expected_tools:
+        - name: get_clinic_info
+          arguments: {location: null, topic: insurers}
+      expected_behaviour: >-
+        Says yes, Blue Cross (Croix Bleue) is accepted.
+    - caller: "Sorry, can we do this in English? Where is the Verdun clinic?"
+      expected_tools:
+        - name: get_clinic_info
+          arguments: {location: Verdun, topic: address}
+      expected_behaviour: >-
+        Replies in French with the Verdun address, 4455 rue Wellington.
+
+- id: unclear-then-french
+  description: A first message too short to tell, then a clear French one.
+  language: french
+  turns:
+    - caller: "Mm-hmm."
+      unclear: true
+      expected_behaviour: >-
+        The fixed bilingual line offering help in French or English.
+    - caller: "Oui, je voudrais savoir vos heures d'ouverture à Verdun."
+      expected_tools:
+        - name: get_clinic_info
+          arguments: {location: Verdun, topic: hours}
+      expected_behaviour: >-
+        Says, in French, that Verdun is open Monday to Friday from 8 a.m.
+        to 5 p.m.
+
+- id: en-street-name-sounds-french
+  description: >-
+    A French street name in an English message. The language must be English,
+    and the agent must work out from the addresses that rue Wellington is
+    the Verdun clinic.
+  language: english
+  turns:
+    - caller: "Hi, is the clinic on rue Wellington open on Friday?"
+      expected_tools:
+        - name: get_clinic_info
+          arguments: {location: Verdun, topic: hours}
+      expected_behaviour: >-
+        Works out from the clinic addresses that rue Wellington is the
+        Verdun clinic, and says it is open Friday from 8 a.m. to 5 p.m.
+
+- id: explicit-switch-french-to-english
+  description: >-
+    The caller explicitly asks to switch to English. The agent switches,
+    and stays in English on the next turn.
+  language: french
+  turns:
+    - caller: "Bonjour, où se trouve la clinique de Verdun?"
+      expected_tools:
+        - name: get_clinic_info
+          arguments: {location: Verdun, topic: address}
+      expected_behaviour: >-
+        Gives the Verdun address, 4455 rue Wellington, in French.
+    - caller: "Sorry, could we continue in English, please?"
+      reply_language: english
+      expected_behaviour: >-
+        Agrees to continue in English and replies in English, without
+        greeting the caller again.
+    - caller: "Is there parking there?"
+      reply_language: english
+      expected_tools:
+        - name: get_clinic_info
+          arguments: {location: Verdun, topic: parking}
+      expected_behaviour: >-
+        Says, in English, that there is free parking for patients in the lot
+        behind the building, with the entrance on rue Galt.
