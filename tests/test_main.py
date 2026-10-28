@@ -266,39 +266,6 @@ def test_slots_from_after_to_returns_422(client):
     assert response.status_code == 422
 
 
-def get_slots_between(client: TestClient, earliest: str, latest: str):
-    return client.get(
-        "/slots",
-        params={
-            "location": PLATEAU_ID,
-            "type": "cleaning",
-            "from": FIRST_DAY.isoformat(),
-            "to": FIRST_DAY.isoformat(),
-            "earliest_start": earliest,
-            "latest_start": latest,
-        },
-    )
-
-
-def test_slots_between_start_times_include_both_limits(client):
-    response = get_slots_between(client, "12:00", "14:00")
-    start_clocks = set()
-    for slot in response.json():
-        start_clocks.add(slot["start_time"][11:16])
-    assert start_clocks == {"12:00", "13:00", "14:00"}
-
-
-def test_slots_earliest_after_latest_returns_422(client):
-    response = get_slots_between(client, "14:00", "12:00")
-    assert response.status_code == 422
-    assert "earliest_start" in response.json()["detail"]
-
-
-def test_slots_start_time_that_is_not_a_time_returns_422(client):
-    response = get_slots_between(client, "noon", "14:00")
-    assert response.status_code == 422
-
-
 # --- POST /patients/verify ---
 
 

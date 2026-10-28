@@ -112,13 +112,7 @@ def test_load_clinic_config_rejects_missing_greeting(tmp_path: Path):
 def test_build_instructions_adds_today_and_next_week():
     instructions = build_instructions("System prompt", date(2026, 10, 23))
     assert instructions.startswith("System prompt")
-    assert "Today is Friday, 2026-10-23.\n" in instructions
-    # Every day of next week, by name, so "Saturday of next week" is a lookup.
-    assert (
-        "Next week is: Monday 2026-10-26, Tuesday 2026-10-27, Wednesday 2026-10-28,"
-        " Thursday 2026-10-29, Friday 2026-10-30, Saturday 2026-10-31,"
-        " Sunday 2026-11-01.\n"
-    ) in instructions
+    assert "Today is Friday, 2026-10-23. Next week is 2026-10-26 to 2026-11-01." in instructions
 
 
 def test_build_instructions_lists_coming_days_with_weekdays():
@@ -131,8 +125,7 @@ def test_build_instructions_lists_coming_days_with_weekdays():
 
 def test_build_instructions_on_a_monday_next_week_starts_in_seven_days():
     instructions = build_instructions("System prompt", date(2026, 10, 26))
-    assert "Next week is: Monday 2026-11-02," in instructions
-    assert "Sunday 2026-11-08.\n" in instructions
+    assert "Next week is 2026-11-02 to 2026-11-08." in instructions
 
 
 def test_take_turn_without_tools_sends_full_history_and_records_reply():

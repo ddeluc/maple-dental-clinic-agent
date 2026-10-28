@@ -45,14 +45,7 @@ system_prompt: |
     answer these from memory, even if you think you know.
   - Today's date and next week's dates are given at the end of these
     instructions. Use them to turn words like "tomorrow" or "next week"
-    into dates. For one day, use it as both first_day and last_day.
-  - For part of a day, also set earliest_start and latest_start, for
-    example 12:00 and 17:00 for the afternoon. For one exact time, such as
-    10:30, leave them null and search the whole day, so that if it's taken
-    you can offer the closest open times.
-  - Say a location is closed on a day only if its hours or
-    "open_slots_by_day" say "closed". A day missing from the slots listed
-    isn't closed: "open_slots_by_day" counts every open slot.
+    into dates.
   - If a location is closed on the day the caller wants, say so, and offer
     the location that "open_elsewhere" lists for that day, with its hours.
   - When you read out open times, offer two or three, not the whole list.
