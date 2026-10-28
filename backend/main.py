@@ -47,12 +47,14 @@ APPOINTMENT_QUERY = """
         appointments.status,
         appointments.cancel_reason,
         slots.location_id,
+        locations.name AS location_name,
         providers.name AS provider_name,
         slots.start_time,
         slots.end_time
     FROM appointments
     JOIN appointment_types ON appointment_types.id = appointments.appointment_type_id
     JOIN slots ON slots.id = appointments.slot_id
+    JOIN locations ON locations.id = slots.location_id
     JOIN providers ON providers.id = slots.provider_id
     WHERE appointments.id = ?
 """
@@ -138,6 +140,9 @@ class Appointment(BaseModel):
     status: str
     cancel_reason: str | None
     location_id: int
+    # The name too, so the agent can confirm where the patient is booked
+    # without a second request to look the id up.
+    location_name: str
     provider_name: str
     start_time: str
     end_time: str
@@ -369,6 +374,7 @@ def appointment_from_row(row: sqlite3.Row) -> Appointment:
         status=row["status"],
         cancel_reason=row["cancel_reason"],
         location_id=row["location_id"],
+        location_name=row["location_name"],
         provider_name=row["provider_name"],
         start_time=row["start_time"],
         end_time=row["end_time"],

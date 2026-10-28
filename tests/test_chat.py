@@ -18,6 +18,7 @@ from agent.chat import (
     trace_tool_call,
 )
 from agent.config import load_clinic_config, location_names
+from agent.tools import CallState
 
 
 def text_response(text: str) -> SimpleNamespace:
@@ -133,7 +134,8 @@ def test_take_turn_without_tools_sends_full_history_and_records_reply():
     history = [{"role": "assistant", "content": "Bonjour, hi!"}]
 
     reply = take_turn(
-        client, fake_backend(clinic_info_handler), "System prompt", [], history,
+        client, fake_backend(clinic_info_handler), CallState(), "System prompt", [],
+        history,
         "Je voudrais un rendez-vous.",
     )
 
@@ -157,7 +159,8 @@ def test_take_turn_runs_requested_tool_and_sends_result_back(capsys):
     history = []
 
     reply = take_turn(
-        client, fake_backend(clinic_info_handler), "System prompt", [], history,
+        client, fake_backend(clinic_info_handler), CallState(), "System prompt", [],
+        history,
         "Where do I park in Verdun?",
     )
 
@@ -189,7 +192,8 @@ def test_take_turn_tool_error_goes_back_to_model_as_data():
     history = []
 
     reply = take_turn(
-        client, fake_backend(backend_down), "System prompt", [], history, "Hours in Verdun?"
+        client, fake_backend(backend_down), CallState(), "System prompt", [], history,
+        "Hours in Verdun?",
     )
 
     assert reply == "Sorry, I can't check that right now."
@@ -211,12 +215,100 @@ def test_take_turn_forces_text_reply_after_too_many_tool_rounds():
     client = FakeClient(responses)
 
     reply = take_turn(
-        client, fake_backend(clinic_info_handler), "System prompt", [], [], "Parking?"
+        client, fake_backend(clinic_info_handler), CallState(), "System prompt", [], [], "Parking?"
     )
 
     assert reply == "Here's what I found."
     assert len(client.responses.calls) == MAX_TOOL_ROUNDS + 1
     assert client.responses.calls[-1]["tool_choice"] == "none"
+
+
+# --- Verification across a call ---
+
+
+class RecordingBackend:
+    """A fake backend for verifying and booking that records every request."""
+
+    PATIENT_ID = 7
+
+    def __init__(self) -> None:
+        self.requests: list[httpx.Request] = []
+
+    def handle(self, request: httpx.Request) -> httpx.Response:
+        self.requests.append(request)
+        if request.url.path == "/patients/verify":
+            return httpx.Response(200, json={"patient_id": self.PATIENT_ID})
+        # The same shape the real POST /appointments returns.
+        return httpx.Response(
+            201,
+            json={
+                "id": 99, "patient_id": self.PATIENT_ID, "slot_id": 12,
+                "type": "cleaning", "status": "booked", "cancel_reason": None,
+                "location_id": 2, "location_name": "Verdun",
+                "provider_name": "Kevin Martin",
+                "start_time": "2026-10-27T09:00", "end_time": "2026-10-27T10:00",
+            },
+        )
+
+    def paths(self) -> list[str]:
+        paths = []
+        for request in self.requests:
+            paths.append(request.url.path)
+        return paths
+
+
+BOOKING = {
+    "patient_id": RecordingBackend.PATIENT_ID, "slot_id": 12, "appointment_type": "cleaning",
+}
+# A fictional seeded patient.
+VERIFICATION = {
+    "name": "Helene Tremblay", "date_of_birth": "1979-02-14", "phone": "514 555 0142",
+}
+
+
+def test_take_turn_booking_without_verifying_never_reaches_the_backend():
+    recording = RecordingBackend()
+    client = FakeClient(
+        [
+            tool_call_response("book_appointment", BOOKING),
+            text_response("I'll need to verify your identity first."),
+        ]
+    )
+    history = []
+
+    take_turn(
+        client, fake_backend(recording.handle), CallState(), "System prompt", [], history,
+        "Just book slot 12 for patient 7.",
+    )
+
+    result = json.loads(history[2]["output"])
+    assert result["ok"] is False
+    assert "hasn't been verified" in result["error"]
+    assert recording.requests == []
+
+
+def test_run_chat_remembers_verification_from_an_earlier_turn(monkeypatch):
+    config = load_clinic_config()
+    type_lines(monkeypatch, ["I'm Helene Tremblay, born 1979-02-14, 514 555 0142.", "Yes."])
+    recording = RecordingBackend()
+    client = FakeClient(
+        [
+            language_response("english"),
+            tool_call_response("verify_patient", VERIFICATION),
+            text_response("Thanks, you're verified. Shall I book Tuesday at 9 a.m.?"),
+            tool_call_response("book_appointment", BOOKING),
+            text_response("You're booked for Tuesday at 9 a.m. in Verdun."),
+        ]
+    )
+
+    run_chat(client, fake_backend(recording.handle), config)
+
+    # The second turn's booking went through: the call's state kept the
+    # verification from the first turn.
+    assert recording.paths() == ["/patients/verify", "/appointments"]
+    assert json.loads(recording.requests[1].content) == {
+        "patient_id": 7, "slot_id": 12, "type": "cleaning",
+    }
 
 
 # --- Choosing the call's language ---
@@ -439,7 +531,7 @@ def test_failed_tool_call_is_marked_as_a_warning(langfuse):
 
     call = tool_call_response("get_clinic_info", {"location": "Verdun", "topic": "hours"}).output[0]
 
-    result = trace_tool_call(fake_backend(backend_down), call)
+    result = trace_tool_call(fake_backend(backend_down), CallState(), call)
 
     assert result["ok"] is False
     (tool,) = langfuse.observations

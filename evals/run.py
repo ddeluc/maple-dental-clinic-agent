@@ -22,7 +22,7 @@ from langfuse.openai import OpenAI
 
 from agent.chat import MODEL, Message, answer_and_trace
 from agent.config import load_clinic_config, location_names
-from agent.tools import make_backend_client, tool_definitions
+from agent.tools import CallState, make_backend_client, tool_definitions
 from backend.seed import DB_PATH
 from evals.availability import check_availability_case
 from evals.checks import CheckResult, check_language_detected, check_tool_use
@@ -77,6 +77,8 @@ def run_case(
     # The case id makes the session easy to find in Langfuse; the random
     # part keeps each run of the same case a separate session.
     session_id = f"eval-{case['id']}-{uuid.uuid4().hex[:8]}"
+    # Each case is a new call, so no patient starts out verified.
+    call_state = CallState()
 
     turn_results = []
     for turn in case["turns"]:
@@ -84,7 +86,8 @@ def run_case(
         # to this turn, which is how the turn's tool calls are found.
         first_new_item = len(history)
         reply, language = answer_and_trace(
-            client, backend, config, tools, history, language, turn["caller"], session_id
+            client, backend, call_state, config, tools, history, language,
+            turn["caller"], session_id,
         )
         turn_results.append(
             {

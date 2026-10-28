@@ -388,6 +388,7 @@ def test_book_open_slot_creates_appointment_and_takes_slot(client, db_path):
     assert appointment["type"] == "cleaning"
     assert appointment["status"] == "booked"
     assert appointment["start_time"] == slot["start_time"]
+    assert appointment["location_name"] == "Plateau"
     assert slot["id"] not in open_slot_ids(client, "cleaning", FIRST_DAY)
 
 

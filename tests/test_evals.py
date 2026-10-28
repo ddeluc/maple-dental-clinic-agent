@@ -171,8 +171,17 @@ def test_run_case_plays_each_turn_as_one_call(monkeypatch):
 
     # Stands in for the agent: records what it was given and adds a tool
     # call on the first turn only, the way the real agent fills the history.
-    def fake_answer(client, backend, config, tools, history, language, user_text, session_id):
-        seen.append({"history_length": len(history), "language": language, "session": session_id})
+    def fake_answer(
+        client, backend, call_state, config, tools, history, language, user_text, session_id
+    ):
+        seen.append(
+            {
+                "history_length": len(history),
+                "language": language,
+                "session": session_id,
+                "call_state": call_state,
+            }
+        )
         history.append({"role": "user", "content": user_text})
         if user_text == "Verdun hours?":
             history.append(call_item("get_clinic_info", VERDUN_HOURS["arguments"], "call_1"))
@@ -190,6 +199,9 @@ def test_run_case_plays_each_turn_as_one_call(monkeypatch):
     assert seen[1]["language"] == "english"
     assert seen[0]["session"] == seen[1]["session"]
     assert seen[0]["session"].startswith("eval-test-case-")
+    # One call state for the whole case, so a patient verified on one turn
+    # can book on the next.
+    assert seen[0]["call_state"] is seen[1]["call_state"]
     # Each turn gets only its own tool calls.
     assert turn_results[0]["tool_calls"][0]["arguments"] == VERDUN_HOURS["arguments"]
     assert turn_results[1]["tool_calls"] == []
@@ -198,9 +210,13 @@ def test_run_case_plays_each_turn_as_one_call(monkeypatch):
 
 def test_each_run_of_a_case_is_its_own_session(monkeypatch):
     sessions = []
+    call_states = []
 
-    def fake_answer(client, backend, config, tools, history, language, user_text, session_id):
+    def fake_answer(
+        client, backend, call_state, config, tools, history, language, user_text, session_id
+    ):
         sessions.append(session_id)
+        call_states.append(call_state)
         return "reply", "english"
 
     monkeypatch.setattr(run, "answer_and_trace", fake_answer)
@@ -211,6 +227,8 @@ def test_each_run_of_a_case_is_its_own_session(monkeypatch):
     run_case(None, None, config, [], case)
 
     assert sessions[0] != sessions[1]
+    # A new call: nothing verified in an earlier run carries over.
+    assert call_states[0] is not call_states[1]
 
 
 def test_save_run_writes_readable_json_named_after_the_run(tmp_path):

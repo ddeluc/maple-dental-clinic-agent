@@ -10,13 +10,17 @@ from fastapi.testclient import TestClient
 
 from agent.tools import (
     MAX_SLOTS_RETURNED,
+    NOT_VERIFIED,
+    CallState,
+    book_appointment,
     check_availability,
     get_clinic_info,
     run_tool,
     tool_definitions,
+    verify_patient,
 )
-from backend.main import app, connect, get_db, get_now
-from backend.seed import seed
+from backend.main import SLOT_TAKEN, app, connect, get_db, get_now
+from backend.seed import fully_booked_day, seed
 
 # A fixed Monday keeps these tests independent of the day they run.
 FIRST_DAY = date(2026, 10, 26)
@@ -24,12 +28,26 @@ FIRST_DAY = date(2026, 10, 26)
 # fixed "now" keeps these tests from failing once the real date passes them.
 TEST_NOW = datetime(2026, 10, 26, 7, 0)
 
+# Seeded patients (all fictional). Hélène is the only patient with this
+# name, birthday and phone; Jean-François is a second, different patient.
+HELENE = {"name": "Helene Tremblay", "date_of_birth": "1979-02-14", "phone": "514 555 0142"}
+JEAN_FRANCOIS = {
+    "name": "Jean-François Côté-Lavoie",
+    "date_of_birth": "1990-11-23",
+    "phone": "514-555-0104",
+}
+
 
 @pytest.fixture
-def backend(tmp_path: Path) -> Iterator[TestClient]:
+def db_path(tmp_path: Path) -> Path:
+    path = tmp_path / "clinic.db"
+    seed(path, first_day=FIRST_DAY)
+    return path
+
+
+@pytest.fixture
+def backend(db_path: Path) -> Iterator[TestClient]:
     """The real backend app on a freshly seeded temporary database."""
-    db_path = tmp_path / "clinic.db"
-    seed(db_path, first_day=FIRST_DAY)
 
     def get_test_db() -> Iterator[sqlite3.Connection]:
         conn = connect(db_path)
@@ -60,7 +78,7 @@ def unreachable_backend() -> httpx.Client:
 
 
 def test_clinic_info_verdun_is_closed_on_saturday(backend):
-    result = get_clinic_info(backend, "Verdun", "hours")
+    result = get_clinic_info(backend, CallState(), "Verdun", "hours")
     assert result["ok"] is True
     assert result["details"]["saturday"] == "closed"
     assert result["details"]["monday"] == "08:00-17:00"
@@ -68,13 +86,13 @@ def test_clinic_info_verdun_is_closed_on_saturday(backend):
 
 
 def test_clinic_info_plateau_is_open_on_saturday(backend):
-    result = get_clinic_info(backend, "Plateau", "hours")
+    result = get_clinic_info(backend, CallState(), "Plateau", "hours")
     assert result["details"]["saturday"] == "09:00-13:00"
     assert "saturday" not in result["open_elsewhere"]
 
 
 def test_clinic_info_insurers_need_no_location(backend):
-    result = get_clinic_info(backend, None, "insurers")
+    result = get_clinic_info(backend, CallState(), None, "insurers")
     assert result["ok"] is True
     assert result["location"] is None
     assert "Sun Life" in result["details"]
@@ -82,13 +100,13 @@ def test_clinic_info_insurers_need_no_location(backend):
 
 
 def test_clinic_info_hours_without_location_is_an_error_result(backend):
-    result = get_clinic_info(backend, None, "hours")
+    result = get_clinic_info(backend, CallState(), None, "hours")
     assert result["ok"] is False
     assert "Plateau, Verdun, Saint-Laurent" in result["error"]
 
 
 def test_clinic_info_backend_down_is_an_error_result(unreachable_backend):
-    result = get_clinic_info(unreachable_backend, "Verdun", "hours")
+    result = get_clinic_info(unreachable_backend, CallState(), "Verdun", "hours")
     assert result == {
         "ok": False,
         "error": "The clinic's scheduling system can't be reached right now.",
@@ -99,7 +117,9 @@ def test_clinic_info_backend_down_is_an_error_result(unreachable_backend):
 
 
 def test_availability_returns_open_slots_from_the_database(backend):
-    result = check_availability(backend, "Verdun", "cleaning", "2026-10-27", "2026-10-27")
+    result = check_availability(
+        backend, CallState(), "Verdun", "cleaning", "2026-10-27", "2026-10-27"
+    )
 
     assert result["ok"] is True
     assert result["open_slot_count"] > 0
@@ -112,7 +132,9 @@ def test_availability_returns_open_slots_from_the_database(backend):
 
 def test_availability_lists_at_most_the_cap_and_says_so(backend):
     # A whole week of cleanings at Verdun is far more than the cap.
-    result = check_availability(backend, "Verdun", "cleaning", "2026-10-26", "2026-11-01")
+    result = check_availability(
+        backend, CallState(), "Verdun", "cleaning", "2026-10-26", "2026-11-01"
+    )
 
     assert len(result["slots"]) == MAX_SLOTS_RETURNED
     assert result["open_slot_count"] > MAX_SLOTS_RETURNED
@@ -120,44 +142,223 @@ def test_availability_lists_at_most_the_cap_and_says_so(backend):
 
 
 def test_availability_unknown_location_is_an_error_result(backend):
-    result = check_availability(backend, "Laval", "cleaning", "2026-10-26", "2026-10-30")
+    result = check_availability(
+        backend, CallState(), "Laval", "cleaning", "2026-10-26", "2026-10-30"
+    )
     assert result == {"ok": False, "error": "There is no location named 'Laval'."}
 
 
 def test_availability_bad_date_is_an_error_result(backend):
-    result = check_availability(backend, "Verdun", "cleaning", "next monday", "2026-10-30")
+    result = check_availability(
+        backend, CallState(), "Verdun", "cleaning", "next monday", "2026-10-30"
+    )
     assert result["ok"] is False
     assert result["error"].startswith("Invalid request. from:")
 
 
 def test_availability_backend_down_is_an_error_result(unreachable_backend):
     result = check_availability(
-        unreachable_backend, "Verdun", "cleaning", "2026-10-26", "2026-10-30"
+        unreachable_backend, CallState(), "Verdun", "cleaning", "2026-10-26", "2026-10-30"
     )
     assert result["ok"] is False
+
+
+def test_availability_on_a_fully_booked_day_offers_alternatives(backend):
+    full_day = fully_booked_day(FIRST_DAY).isoformat()  # Wednesday 2026-11-04
+
+    result = check_availability(backend, CallState(), "Verdun", "cleaning", full_day, full_day)
+
+    assert result["ok"] is True
+    assert result["open_slot_count"] == 0
+    alternatives = result["alternatives"]
+    # The nearest open days at Verdun, on either side.
+    for slot in alternatives["closest_earlier_day"]:
+        assert slot["start_time"].startswith("2026-11-03")
+    for slot in alternatives["closest_later_day"]:
+        assert slot["start_time"].startswith("2026-11-05")
+    # And the other locations, which are open that Wednesday.
+    other_names = []
+    for option in alternatives["other_locations"]:
+        other_names.append(option["location"])
+        assert len(option["slots"]) == 3
+        assert option["slots"][0]["start_time"].startswith(full_day)
+    assert other_names == ["Plateau", "Saint-Laurent"]
+
+
+def test_availability_on_a_closed_saturday_offers_the_open_location(backend):
+    result = check_availability(
+        backend, CallState(), "Verdun", "cleaning", "2026-10-31", "2026-10-31"
+    )
+
+    alternatives = result["alternatives"]
+    assert alternatives["closest_earlier_day"][0]["start_time"].startswith("2026-10-30")
+    assert alternatives["closest_later_day"][0]["start_time"].startswith("2026-11-02")
+    # Saint-Laurent is closed on Saturdays too, so only Plateau is offered.
+    assert len(alternatives["other_locations"]) == 1
+    assert alternatives["other_locations"][0]["location"] == "Plateau"
+
+
+def test_availability_leaves_out_a_side_with_nothing_open(backend):
+    # The day before the first seeded day: nothing earlier exists at all.
+    result = check_availability(
+        backend, CallState(), "Verdun", "cleaning", "2026-10-25", "2026-10-25"
+    )
+
+    alternatives = result["alternatives"]
+    assert "closest_earlier_day" not in alternatives
+    assert alternatives["closest_later_day"][0]["start_time"].startswith("2026-10-26")
+
+
+def test_availability_with_open_slots_has_no_alternatives(backend):
+    result = check_availability(
+        backend, CallState(), "Verdun", "cleaning", "2026-11-03", "2026-11-03"
+    )
+    assert result["open_slot_count"] > 0
+    assert "alternatives" not in result
+
+
+# --- verify_patient ---
+
+
+def test_verify_patient_match_marks_the_patient_verified(backend):
+    call_state = CallState()
+
+    result = verify_patient(backend, call_state, **HELENE)
+
+    assert result["ok"] is True
+    assert call_state.verified_patient_ids == {result["patient_id"]}
+
+
+def test_verify_patient_wrong_detail_verifies_no_one(backend):
+    call_state = CallState()
+    wrong_phone = dict(HELENE, phone="514-555-0199")
+
+    result = verify_patient(backend, call_state, **wrong_phone)
+
+    assert result["ok"] is False
+    assert "No patient matches" in result["error"]
+    assert call_state.verified_patient_ids == set()
+
+
+def test_verify_patient_backend_down_is_an_error_result(unreachable_backend):
+    call_state = CallState()
+    result = verify_patient(unreachable_backend, call_state, **HELENE)
+    assert result["ok"] is False
+    assert call_state.verified_patient_ids == set()
+
+
+# --- book_appointment ---
+
+
+def count_booked(db_path: Path) -> int:
+    conn = sqlite3.connect(db_path)
+    try:
+        return conn.execute(
+            "SELECT COUNT(*) FROM appointments WHERE status = 'booked'"
+        ).fetchone()[0]
+    finally:
+        conn.close()
+
+
+def first_open_verdun_cleaning(backend: TestClient) -> dict:
+    result = check_availability(
+        backend, CallState(), "Verdun", "cleaning", "2026-10-27", "2026-10-27"
+    )
+    return result["slots"][0]
+
+
+def test_book_after_verifying_creates_the_appointment(backend, db_path):
+    call_state = CallState()
+    patient_id = verify_patient(backend, call_state, **HELENE)["patient_id"]
+    slot = first_open_verdun_cleaning(backend)
+
+    result = book_appointment(backend, call_state, patient_id, slot["slot_id"], "cleaning")
+
+    assert result["ok"] is True
+    assert result["location"] == "Verdun"
+    assert result["start_time"] == slot["start_time"]
+    assert result["provider"] == slot["provider"]
+    conn = sqlite3.connect(db_path)
+    row = conn.execute(
+        "SELECT patient_id, slot_id, status FROM appointments WHERE id = ?",
+        (result["appointment_id"],),
+    ).fetchone()
+    conn.close()
+    assert row == (patient_id, slot["slot_id"], "booked")
+
+
+def test_book_without_verifying_is_refused_and_changes_nothing(backend, db_path):
+    patient_id = verify_patient(backend, CallState(), **HELENE)["patient_id"]
+    slot = first_open_verdun_cleaning(backend)
+    booked_before = count_booked(db_path)
+
+    # A real patient id, but verified on a different call.
+    result = book_appointment(backend, CallState(), patient_id, slot["slot_id"], "cleaning")
+
+    assert result == {"ok": False, "error": NOT_VERIFIED}
+    assert count_booked(db_path) == booked_before
+
+
+def test_book_for_a_different_patient_than_the_verified_one_is_refused(backend, db_path):
+    call_state = CallState()
+    verify_patient(backend, call_state, **HELENE)
+    other_patient_id = verify_patient(backend, CallState(), **JEAN_FRANCOIS)["patient_id"]
+    slot = first_open_verdun_cleaning(backend)
+    booked_before = count_booked(db_path)
+
+    result = book_appointment(backend, call_state, other_patient_id, slot["slot_id"], "cleaning")
+
+    assert result == {"ok": False, "error": NOT_VERIFIED}
+    assert count_booked(db_path) == booked_before
+
+
+def test_book_a_taken_slot_is_an_error_result(backend):
+    call_state = CallState()
+    patient_id = verify_patient(backend, call_state, **HELENE)["patient_id"]
+    slot = first_open_verdun_cleaning(backend)
+    book_appointment(backend, call_state, patient_id, slot["slot_id"], "cleaning")
+
+    result = book_appointment(backend, call_state, patient_id, slot["slot_id"], "cleaning")
+
+    assert result == {"ok": False, "error": SLOT_TAKEN}
 
 
 # --- run_tool and the definitions ---
 
 
+def test_run_tool_refuses_a_booking_the_model_asks_for_without_verifying(backend, db_path):
+    # What a model that skipped verification would send: a plausible
+    # patient id and a real open slot.
+    slot = first_open_verdun_cleaning(backend)
+    arguments = json.dumps(
+        {"patient_id": 1, "slot_id": slot["slot_id"], "appointment_type": "cleaning"}
+    )
+    booked_before = count_booked(db_path)
+
+    result = run_tool(backend, CallState(), "book_appointment", arguments)
+
+    assert result == {"ok": False, "error": NOT_VERIFIED}
+    assert count_booked(db_path) == booked_before
+
+
 def test_run_tool_parses_arguments_and_calls_the_tool(backend):
     arguments = json.dumps({"location": "Verdun", "topic": "hours"})
-    result = run_tool(backend, "get_clinic_info", arguments)
+    result = run_tool(backend, CallState(), "get_clinic_info", arguments)
     assert result["details"]["saturday"] == "closed"
 
 
 def test_run_tool_unknown_tool_is_an_error_result(backend):
-    result = run_tool(backend, "book_spa_day", "{}")
+    result = run_tool(backend, CallState(), "book_spa_day", "{}")
     assert result == {"ok": False, "error": "There is no tool named 'book_spa_day'."}
 
 
 def test_run_tool_invalid_json_is_an_error_result(backend):
-    result = run_tool(backend, "get_clinic_info", "{not json")
+    result = run_tool(backend, CallState(), "get_clinic_info", "{not json")
     assert result == {"ok": False, "error": "The tool arguments were not valid JSON."}
 
 
 def test_run_tool_wrong_arguments_are_an_error_result(backend):
-    result = run_tool(backend, "get_clinic_info", json.dumps({"place": "Verdun"}))
+    result = run_tool(backend, CallState(), "get_clinic_info", json.dumps({"place": "Verdun"}))
     assert result["ok"] is False
     assert result["error"].startswith("The tool failed unexpectedly: TypeError")
 
@@ -167,7 +368,9 @@ def test_tool_definitions_offer_only_the_configured_locations():
     names = []
     for definition in definitions:
         names.append(definition["name"])
-    assert names == ["get_clinic_info", "check_availability"]
+    assert names == [
+        "get_clinic_info", "check_availability", "verify_patient", "book_appointment",
+    ]
 
     availability = definitions[1]["parameters"]["properties"]
     assert availability["location"]["enum"] == ["Plateau", "Verdun"]

@@ -20,7 +20,7 @@ from langfuse import get_client, propagate_attributes
 from langfuse.openai import OpenAI
 
 from agent.config import LANGUAGES, load_clinic_config, location_names
-from agent.tools import make_backend_client, run_tool, tool_definitions
+from agent.tools import CallState, make_backend_client, run_tool, tool_definitions
 
 MODEL = "gpt-4o-mini"
 EXIT_WORDS = {"quit", "exit"}
@@ -154,7 +154,10 @@ def find_tool_calls(response: Any) -> list[Any]:
 
 
 def run_tool_calls(
-    backend: httpx.Client, tool_calls: list[Any], history: list[Message]
+    backend: httpx.Client,
+    call_state: CallState,
+    tool_calls: list[Any],
+    history: list[Message],
 ) -> None:
     """Run each tool call, print it, and add the calls and results to the history."""
     # The calls go into the history first, then their outputs, as in the
@@ -172,7 +175,7 @@ def run_tool_calls(
 
     for call in tool_calls:
         print(f"  [tool]   {call.name} {call.arguments}")
-        result = trace_tool_call(backend, call)
+        result = trace_tool_call(backend, call_state, call)
         # ensure_ascii=False keeps "Côté" readable instead of "Côté".
         result_json = json.dumps(result, ensure_ascii=False)
         print(f"  [result] {result_json}")
@@ -181,7 +184,9 @@ def run_tool_calls(
         )
 
 
-def trace_tool_call(backend: httpx.Client, call: Any) -> dict[str, Any]:
+def trace_tool_call(
+    backend: httpx.Client, call_state: CallState, call: Any
+) -> dict[str, Any]:
     """Run one tool call inside a Langfuse "tool" observation."""
     # The observation nests under the turn, next to the generation that
     # asked for it, so the trace reads: generation, tool, generation.
@@ -191,7 +196,7 @@ def trace_tool_call(backend: httpx.Client, call: Any) -> dict[str, Any]:
         input=call.arguments,
         metadata={"call_id": call.call_id},
     ) as observation:
-        result = run_tool(backend, call.name, call.arguments)
+        result = run_tool(backend, call_state, call.name, call.arguments)
         observation.update(output=result)
         # Tools return errors as data, so nothing raises here. Marking the
         # observation lets you filter Langfuse for turns where a tool failed.
@@ -208,6 +213,7 @@ def record_reply(history: list[Message], reply: str) -> str:
 def take_turn(
     client: OpenAI,
     backend: httpx.Client,
+    call_state: CallState,
     system_prompt: str,
     tools: list[dict[str, Any]],
     history: list[Message],
@@ -225,7 +231,7 @@ def take_turn(
         tool_calls = find_tool_calls(response)
         if not tool_calls:
             return record_reply(history, response.output_text)
-        run_tool_calls(backend, tool_calls, history)
+        run_tool_calls(backend, call_state, tool_calls, history)
 
     # Still asking for tools after MAX_TOOL_ROUNDS: tool_choice="none" makes
     # the model reply with text, using what it has learned so far.
@@ -236,6 +242,7 @@ def take_turn(
 def answer_caller(
     client: OpenAI,
     backend: httpx.Client,
+    call_state: CallState,
     config: dict,
     tools: list[dict[str, Any]],
     history: list[Message],
@@ -261,13 +268,16 @@ def answer_caller(
     # Tags the turn and everything inside it with the call's language, so
     # Langfuse can compare French and English calls.
     with propagate_attributes(metadata={"language": language}):
-        reply = take_turn(client, backend, system_prompt, tools, history, user_text)
+        reply = take_turn(
+            client, backend, call_state, system_prompt, tools, history, user_text
+        )
     return reply, language
 
 
 def answer_and_trace(
     client: OpenAI,
     backend: httpx.Client,
+    call_state: CallState,
     config: dict,
     tools: list[dict[str, Any]],
     history: list[Message],
@@ -289,7 +299,7 @@ def answer_and_trace(
             as_type="agent", name=TURN_NAME, input=user_text
         ) as turn:
             reply, language = answer_caller(
-                client, backend, config, tools, history, language, user_text
+                client, backend, call_state, config, tools, history, language, user_text
             )
             turn.update(output=reply)
     return reply, language
@@ -310,6 +320,9 @@ def run_chat(client: OpenAI, backend: httpx.Client, config: dict) -> None:
     # Each turn is its own Langfuse trace. They all share this session id,
     # so Langfuse's Sessions view can replay the whole call in order.
     session_id = str(uuid.uuid4())
+    # Which patients have been verified on this call. Made fresh here, so a
+    # verification never carries over into another call.
+    call_state = CallState()
     print(f"Agent: {greeting}")
 
     while True:
@@ -325,7 +338,8 @@ def run_chat(client: OpenAI, backend: httpx.Client, config: dict) -> None:
             continue
 
         reply, language = answer_and_trace(
-            client, backend, config, tools, history, language, user_text, session_id
+            client, backend, call_state, config, tools, history, language, user_text,
+            session_id,
         )
         print(f"Agent: {reply}")
 

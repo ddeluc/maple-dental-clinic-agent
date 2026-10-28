@@ -97,6 +97,14 @@ CANCELLED_APPOINTMENTS = [
     "Feeling unwell",
 ]
 
+# One day with no cleanings left at Verdun, so "nothing is open, here are
+# the closest alternatives" has a fixed case to test and demo. It's next
+# week's Wednesday: a day Verdun is normally open, and one the other two
+# locations still have openings on.
+FULLY_BOOKED_LOCATION = "Verdun"
+FULLY_BOOKED_ROLE = "hygienist"  # hygienists do the cleanings
+WEDNESDAY = 2  # date.weekday() numbers Monday as 0
+
 
 def slot_times(
     day: date, opens: time, closes: time, duration_minutes: int
@@ -263,6 +271,57 @@ def insert_appointments(
         )
 
 
+def fully_booked_day(first_day: date) -> date:
+    """The Wednesday of the week after first_day."""
+    # The same "next week" the agent is told about: it starts on the Monday
+    # after first_day, even when first_day is itself a Monday.
+    days_until_next_monday = 7 - first_day.weekday()
+    return first_day + timedelta(days=days_until_next_monday + WEDNESDAY)
+
+
+def insert_fully_booked_day(
+    conn: sqlite3.Connection,
+    patient_ids: list[int],
+    type_id_by_role: dict[str, int],
+    first_day: date,
+) -> None:
+    """Book every open Verdun cleaning slot on fully_booked_day()."""
+    day = fully_booked_day(first_day)
+    # The random appointments may already use a few of these slots, so only
+    # the ones still open are booked. The day after is the end of the range,
+    # as in the /slots endpoint.
+    open_slot_rows = conn.execute(
+        "SELECT slots.id FROM slots"
+        " JOIN providers ON providers.id = slots.provider_id"
+        " JOIN locations ON locations.id = slots.location_id"
+        " WHERE locations.name = ? AND providers.role = ?"
+        "   AND slots.start_time >= ? AND slots.start_time < ?"
+        "   AND NOT EXISTS ("
+        "       SELECT 1 FROM appointments"
+        "       WHERE appointments.slot_id = slots.id AND appointments.status = 'booked'"
+        "   )"
+        " ORDER BY slots.id",
+        (
+            FULLY_BOOKED_LOCATION,
+            FULLY_BOOKED_ROLE,
+            day.isoformat(),
+            (day + timedelta(days=1)).isoformat(),
+        ),
+    ).fetchall()
+
+    created_at = datetime.now().isoformat(timespec="seconds")
+    for index, (slot_id,) in enumerate(open_slot_rows):
+        # Any patients will do. Taking them in order, instead of from rng,
+        # leaves the random appointments above exactly as they were.
+        patient_id = patient_ids[index % len(patient_ids)]
+        conn.execute(
+            "INSERT INTO appointments"
+            " (patient_id, slot_id, appointment_type_id, status, created_at)"
+            " VALUES (?, ?, ?, 'booked', ?)",
+            (patient_id, slot_id, type_id_by_role[FULLY_BOOKED_ROLE], created_at),
+        )
+
+
 def seed(db_path: Path = DB_PATH, first_day: date | None = None) -> None:
     """Delete the database at db_path and rebuild it with seed data."""
     if first_day is None:
@@ -282,6 +341,7 @@ def seed(db_path: Path = DB_PATH, first_day: date | None = None) -> None:
         patient_ids = insert_patients(conn, rng)
         insert_slots(conn, providers, location_ids, first_day)
         insert_appointments(conn, rng, patient_ids, type_id_by_role)
+        insert_fully_booked_day(conn, patient_ids, type_id_by_role, first_day)
         conn.commit()
     finally:
         conn.close()

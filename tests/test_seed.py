@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 
 from backend.clinic_facts import opening_hours
-from backend.seed import CLINIC_FACTS, SLOT_DAYS, seed
+from backend.seed import CLINIC_FACTS, SLOT_DAYS, fully_booked_day, seed
 
 # A fixed Monday keeps these tests independent of the day they run.
 FIRST_DAY = date(2026, 10, 26)
@@ -124,3 +124,34 @@ def test_database_rejects_double_booking(conn):
             " VALUES (?, ?, ?, 'booked', '2026-10-26T10:00:00')",
             (patient_id, slot_id, type_id),
         )
+
+
+def test_fully_booked_day_is_next_weeks_wednesday():
+    assert fully_booked_day(FIRST_DAY) == date(2026, 11, 4)
+    # From a Wednesday, "next week" still means the week after.
+    assert fully_booked_day(date(2026, 10, 28)) == date(2026, 11, 4)
+
+
+def count_verdun_cleaning_slots(conn: sqlite3.Connection, day: date, open_only: bool) -> int:
+    query = (
+        "SELECT COUNT(*) FROM slots"
+        " JOIN providers ON providers.id = slots.provider_id"
+        " JOIN locations ON locations.id = slots.location_id"
+        " WHERE locations.name = 'Verdun' AND providers.role = 'hygienist'"
+        "   AND substr(slots.start_time, 1, 10) = ?"
+    )
+    if open_only:
+        query += (
+            " AND NOT EXISTS (SELECT 1 FROM appointments"
+            " WHERE appointments.slot_id = slots.id AND appointments.status = 'booked')"
+        )
+    return conn.execute(query, (day.isoformat(),)).fetchone()[0]
+
+
+def test_every_verdun_cleaning_on_the_fully_booked_day_is_taken(conn):
+    full_day = fully_booked_day(FIRST_DAY)
+    assert count_verdun_cleaning_slots(conn, full_day, open_only=False) > 0
+    assert count_verdun_cleaning_slots(conn, full_day, open_only=True) == 0
+    # Only that day: the day before still has openings.
+    day_before = full_day - timedelta(days=1)
+    assert count_verdun_cleaning_slots(conn, day_before, open_only=True) > 0
