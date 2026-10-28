@@ -73,9 +73,9 @@
         Says yes, Desjardins Insurance is accepted.
     - caller: "And Industrial Alliance?"
       expected_behaviour: >-
-        Says Industrial Alliance is not on the list of accepted insurers,
-        without claiming anything else about it. It may name the insurers
-        that are accepted.
+        Says Industrial Alliance is not accepted, or not on the list of
+        accepted insurers, without claiming anything else about it, such as
+        a reason. It may name the insurers that are accepted.
 
 - id: fr-saint-laurent-parking
   description: A single clinic fact in French.

@@ -134,7 +134,9 @@ def check_offered_times(
                 " matching slots were open"
             )
         if not offered_slots:
-            problems.append(f"offered no times, but {len(open_in_request)} matching slots were open")
+            problems.append(
+                f"offered no times, but {len(open_in_request)} matching slots were open"
+            )
         for slot in offered_slots:
             if not is_in_request(slot, request):
                 problems.append(
@@ -151,6 +153,42 @@ def check_offered_times(
     return {"passed": True, "reason": f"offered {len(offered_slots)} real, matching times"}
 
 
+def check_availability_turn(
+    client: OpenAI,
+    instructions: str,
+    turn_result: dict[str, Any],
+    availability: dict[str, Any],
+    location_names: list[str],
+    today: date,
+    db_path: Path,
+    now: datetime,
+) -> CheckResult:
+    """Score one reply to a caller who asked for times.
+
+    `now` decides which slots have already started. Passing the run's start
+    time, instead of reading the clock here, means re-judging a saved run
+    later still sees the slots the agent saw.
+    """
+    request = resolve_request(availability, today)
+    extracted = extract_offered_times(
+        client,
+        instructions,
+        turn_result["reply"],
+        turn_result["caller"],
+        request["location"],
+        location_names,
+        today,
+    )
+    open_slots = find_open_slots(db_path, request["appointment_type"], now)
+    verdict = check_offered_times(
+        extracted["offered"], extracted["says_request_unavailable"], request, open_slots
+    )
+    # What the judge read from the reply, so a wrong score can be traced
+    # to the extraction or to the agent.
+    verdict["extracted"] = extracted
+    return verdict
+
+
 def check_availability_case(
     client: OpenAI,
     instructions: str,
@@ -159,6 +197,7 @@ def check_availability_case(
     location_names: list[str],
     today: date,
     db_path: Path,
+    now: datetime,
 ) -> CheckResult | None:
     """Score every turn whose caller asked for times. None if no turn did."""
     turn_verdicts = []
@@ -166,23 +205,9 @@ def check_availability_case(
         availability = case["turns"][index].get("availability")
         if availability is None:
             continue
-        request = resolve_request(availability, today)
-        extracted = extract_offered_times(
-            client,
-            instructions,
-            turn_result["reply"],
-            turn_result["caller"],
-            request["location"],
-            location_names,
-            today,
-        )
-        open_slots = find_open_slots(db_path, request["appointment_type"], datetime.now())
-        verdict = check_offered_times(
-            extracted["offered"], extracted["says_request_unavailable"], request, open_slots
+        verdict = check_availability_turn(
+            client, instructions, turn_result, availability, location_names, today, db_path, now
         )
         verdict["turn"] = index + 1
-        # What the judge read from the reply, so a wrong score can be traced
-        # to the extraction or to the agent.
-        verdict["extracted"] = extracted
         turn_verdicts.append(verdict)
     return combine_turn_verdicts(turn_verdicts)

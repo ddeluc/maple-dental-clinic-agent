@@ -6,7 +6,7 @@ from agent.tools import APPOINTMENT_TYPES, TOOL_FUNCTIONS
 from evals import run
 from evals.availability import resolve_request
 from evals.checks import check_language_detected, check_tool_use
-from evals.run import load_cases, run_case, score_case, tool_calls_from
+from evals.run import load_cases, run_case, save_run, score_case, tool_calls_from
 
 
 def call_item(name: str, arguments: dict, call_id: str) -> dict:
@@ -133,7 +133,10 @@ def test_tool_use_compares_only_the_listed_arguments():
 
 
 def test_tool_use_fails_on_the_wrong_arguments_and_says_what_was_called():
-    plateau_hours = {"name": "get_clinic_info", "arguments": {"location": "Plateau", "topic": "hours"}}
+    plateau_hours = {
+        "name": "get_clinic_info",
+        "arguments": {"location": "Plateau", "topic": "hours"},
+    }
     case = {"turns": [{"expected_tools": [VERDUN_HOURS]}]}
 
     result = check_tool_use(case, [turn_result("english", [plateau_hours])])
@@ -208,6 +211,21 @@ def test_each_run_of_a_case_is_its_own_session(monkeypatch):
     run_case(None, None, config, [], case)
 
     assert sessions[0] != sessions[1]
+
+
+def test_save_run_writes_readable_json_named_after_the_run(tmp_path):
+    run_record = {
+        "run_id": "run-20261027-150000",
+        "cases": [{"id": "fr-case", "turns": [turn_result("french")], "scores": {}}],
+    }
+    run_record["cases"][0]["turns"][0]["reply"] = "Oui, à Verdun."
+
+    path = save_run(run_record, tmp_path / "results")
+
+    assert path == tmp_path / "results" / "run-20261027-150000.json"
+    text = path.read_text(encoding="utf-8")
+    assert "Oui, à Verdun." in text  # accents kept, not à
+    assert json.loads(text) == run_record
 
 
 def test_score_case_leaves_out_checks_that_do_not_apply():

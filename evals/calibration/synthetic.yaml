@@ -1,0 +1,98 @@
+# Hand-written replies for judge calibration.
+#
+# Real runs rarely give a judge clear failures to be tested on (phone-style
+# passed 14 of 14 in the first run), so these replace the agent's reply on
+# one turn of a saved run, with everything else about that turn kept. They
+# go into the label sheet next to the real replies, and get labelled the
+# same way, by a person, without seeing what the judges said.
+#
+#   case_id, turn   Which reply to replace (turn numbers start at 1).
+#   reply           The replacement.
+#   meant_to_test   Why it's here. Not shown on the label sheet, so it
+#                   can't steer the labels; label what the reply does.
+
+- case_id: en-verdun-saturday-hours
+  turn: 1
+  reply: >-
+    Bien sûr! The Verdun clinic is closed on Saturdays, but our Plateau
+    location is open from 9 a.m. to 1 p.m. Would you like to book there?
+  meant_to_test: language-consistency, one French phrase in an English reply
+
+- case_id: en-verdun-saturday-hours
+  turn: 1
+  reply: >-
+    The Verdun clinic is closed on Saturdays, but our Plateau location is
+    open Saturdays from 9 a.m. to 3 p.m. Would you like to book there?
+  meant_to_test: grounded, wrong closing time
+
+- case_id: unclear-then-french
+  turn: 2
+  reply: >-
+    À Verdun, nous sommes ouverts du lundi au vendredi, from 8 a.m. to
+    5 p.m. Avez-vous besoin d'un rendez-vous?
+  meant_to_test: language-consistency, English in the middle of French
+
+- case_id: bluecross-french-insurer
+  turn: 1
+  reply: >-
+    Oui, nous acceptons la Croix Bleue, ainsi que Desjardins, Sun Life et
+    Manulife. Voulez-vous prendre un rendez-vous?
+  meant_to_test: language-consistency should pass, names don't count
+
+- case_id: fr-saint-laurent-parking
+  turn: 1
+  reply: >-
+    Oui, il y a un stationnement souterrain dans l'immeuble, au niveau P1,
+    au coût de 5 $ de l'heure. Avez-vous besoin d'un rendez-vous?
+  meant_to_test: grounded, invented parking fee (the tool says free)
+
+- case_id: en-plateau-cleaning-next-week
+  turn: 1
+  reply: "Here are the openings next week:\n- 2026-11-02T08:00 (slot 1075)\n- 2026-11-02T08:00 (slot 1084)\n- 2026-11-02T09:00\n- 2026-11-02T10:00\nWhich one works for you?"
+  meant_to_test: phone-style, a list with ids and machine times
+
+- case_id: fr-plateau-address-then-parking
+  turn: 1
+  reply: >-
+    L'adresse de la clinique du Plateau est 4120 rue Saint-Denis. C'est à
+    Montréal. Le code postal est H2W 2M5. Avez-vous besoin d'autre chose?
+    Voulez-vous prendre rendez-vous?
+  meant_to_test: phone-style, five sentences and two questions
+
+- case_id: en-saint-laurent-cleaning-at-1030
+  turn: 1
+  reply: >-
+    10:30 isn't open next Wednesday, but I can offer 10:15 or 11:45 that
+    day. Would either of those work?
+  meant_to_test: availability-correct, times that can't exist
+
+- case_id: en-saint-laurent-cleaning-at-1030
+  turn: 1
+  reply: >-
+    10:30 isn't available next Wednesday, but I have 10 a.m. or 11 a.m. that
+    day. Would either of those work for you?
+  meant_to_test: every score should pass
+
+- case_id: en-cleaning-price
+  turn: 1
+  reply: >-
+    A cleaning is usually about 150 dollars, but it depends on your
+    insurance. Would you like to book one?
+  meant_to_test: grounded and task-success, an invented price
+
+- case_id: switch-english-to-french
+  turn: 2
+  reply: >-
+    Le samedi, la clinique de Saint-Laurent est fermée, mais celle du
+    Plateau est ouverte de 9 h à 13 h. Voulez-vous prendre rendez-vous
+    là-bas?
+  meant_to_test: language-consistency, switched without being asked
+
+- case_id: en-verdun-cleaning-saturday
+  turn: 1
+  reply: >-
+    Verdun is closed on Saturdays, but our Plateau clinic has cleaning
+    openings that Saturday morning. Would you like me to check the times?
+  meant_to_test: >-
+    a close call: right about Verdun, but Plateau's openings were never
+    looked up, and no times are offered

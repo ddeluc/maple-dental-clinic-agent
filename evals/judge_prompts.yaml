@@ -36,9 +36,17 @@ grounded: |
 
   Every fact in the reply must be supported by those sources: opening hours,
   addresses, parking, insurers, appointment times, provider names, prices,
-  policies, and which location is where. Rewording, translating, and saying
-  times the way people speak ("9 a.m." for 09:00) are fine. Questions, offers
-  to help, and saying it doesn't know something are not facts.
+  policies, which location is where, and contact details such as a website,
+  email or phone number. Pointing the caller to one ("visit our website")
+  states that it exists, so it needs a source too.
+
+  Rewording, translating, and saying times the way people speak ("9 a.m."
+  for 09:00) are fine. Questions, offers to help, and saying it doesn't know
+  something are not facts.
+
+  A list from a tool is complete: saying that something missing from it
+  isn't there is supported. For example, an insurer that isn't in the
+  insurers list is not accepted.
 
   Pass if every fact is supported.
   Fail if the reply states any fact that isn't supported, even if it happens
@@ -55,22 +63,27 @@ task_success: |
   Pass if the reply does everything the expected behaviour describes. A short
   follow-up question or offer to help is fine.
   Fail if it misses any part of the expected behaviour, gets a fact in it
-  wrong, or does something the expected behaviour rules out.
+  wrong, or does something the expected behaviour rules out. Answering the
+  caller's question is not enough: the answer must be the right one.
 
   Judge against the expected behaviour only. Language and style are checked
   separately, unless the expected behaviour mentions them.
 
 phone_style: |
   The phone receptionist agent of a dental clinic speaks its replies aloud
-  on a phone call. Check one reply against these rules, which come from the
-  agent's instructions:
+  on a phone call. Check one reply against these rules:
   1. One to three short sentences.
   2. At most one question.
   3. No lists, markdown, emojis, URLs, or ids (such as slot ids).
-  4. Times said the way people speak, like "Monday at 9 a.m." or
-     "lundi à 9 h", never like "09:00" or "2026-11-02T09:00".
+  4. Times said the way people speak. Clock times such as "10:30",
+     "9 a.m." or "14 h" are fine. Machine forms such as "09:00" or
+     "2026-11-02T09:00", and dates such as "2026-11-02", are not.
   5. When it offers appointment times, it offers two or three, not just one
      and not a long list.
+  6. No postal codes in an address, and no list of things the caller
+     didn't ask about, such as every accepted insurer when the caller
+     asked about one. A short follow-up question or offer to help, such as
+     "Would you like to book an appointment?", is fine.
 
   Pass if the reply follows every rule. Fail if it breaks any of them.
   Judge only these rules. Ignore facts, language and helpfulness.

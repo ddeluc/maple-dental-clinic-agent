@@ -52,7 +52,9 @@ This project uses **uv** for Python, the virtual environment and dependencies. N
 - Run the backend: `uv run uvicorn backend.main:app --reload` (docs at http://localhost:8000/docs)
 - Text agent: `uv run python -m agent.chat`
 - Voice agent (dev): `uv run python -m agent.voice dev`
-- Evals (backend must be running): `uv run python -m evals.run`
+- Evals (backend must be running): `uv run python -m evals.run` (saves the run to `evals/results/`)
+- Judge calibration label sheet: `uv run python -m evals.calibration sheet evals/results/<run>.json`
+- Judge calibration, judges vs. labels: `uv run python -m evals.calibration compare` (saves to `evals/calibration/comparisons/`)
 - Tests: `uv run pytest`
 
 Update this section when a command changes.

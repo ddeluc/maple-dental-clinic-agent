@@ -1,6 +1,6 @@
-import json
 from datetime import date
-from types import SimpleNamespace
+
+import pytest
 
 from evals.judges import (
     JUDGE_MODEL,
@@ -9,26 +9,15 @@ from evals.judges import (
     grounded_inputs,
     judge_case,
     judge_each_turn,
+    judge_inputs_for,
     language_inputs,
     load_judge_prompts,
     task_inputs,
 )
+from tests.fake_judge import FakeJudgeClient
 
 TODAY = date(2026, 10, 27)  # a Tuesday
 GREETING = "Bonjour, hi!"
-
-
-class FakeJudgeClient:
-    """Stands in for the OpenAI client: plays back JSON answers in order."""
-
-    def __init__(self, answers: list[dict]) -> None:
-        self.answers = list(answers)
-        self.calls: list[dict] = []
-        self.responses = self  # so client.responses.create() lands on create()
-
-    def create(self, **kwargs) -> SimpleNamespace:
-        self.calls.append(kwargs)
-        return SimpleNamespace(output_text=json.dumps(self.answers.pop(0)))
 
 
 def passing(reason: str = "fine") -> dict:
@@ -131,7 +120,12 @@ def test_grounded_inputs_include_the_dates_and_earlier_tool_results():
 
 
 def test_task_inputs_show_the_expected_behaviour_and_only_this_turns_tools():
-    case = {"turns": [{"expected_behaviour": "Gives the hours."}, {"expected_behaviour": "Says goodbye."}]}
+    case = {
+        "turns": [
+            {"expected_behaviour": "Gives the hours."},
+            {"expected_behaviour": "Says goodbye."},
+        ]
+    }
     turns = [
         turn_result("Verdun hours?", "8 to 5.", [VERDUN_HOURS_CALL]),
         turn_result("Thanks, bye!", "Goodbye!"),
@@ -185,3 +179,8 @@ def test_extract_offered_times_allows_only_real_locations():
     assert "The caller asked about the Plateau location." in call["input"]
     assert "Today is Tuesday, 2026-10-27." in call["input"]
     assert extracted == answer
+
+
+def test_judge_inputs_for_rejects_a_score_without_a_judge():
+    with pytest.raises(ValueError, match="availability-correct"):
+        judge_inputs_for("availability-correct", {"turns": []}, [], GREETING, TODAY)

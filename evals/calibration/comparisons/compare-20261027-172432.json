@@ -1,0 +1,1240 @@
+{
+  "comparison_id": "compare-20261027-172432",
+  "compared_at": "2026-10-27T17:24:32",
+  "run_file": "evals/results/run-20261027-144223.json",
+  "judge_model": "gpt-5.5-2026-04-23",
+  "judge_reasoning_effort": "low",
+  "agreement": {
+    "language-consistency": {
+      "labels": 32,
+      "agreed": 32,
+      "missed_failures": 0,
+      "false_alarms": 0
+    },
+    "grounded": {
+      "labels": 32,
+      "agreed": 30,
+      "missed_failures": 0,
+      "false_alarms": 2
+    },
+    "task-success": {
+      "labels": 33,
+      "agreed": 25,
+      "missed_failures": 0,
+      "false_alarms": 8
+    },
+    "phone-style": {
+      "labels": 32,
+      "agreed": 25,
+      "missed_failures": 4,
+      "false_alarms": 3
+    },
+    "availability-correct": {
+      "labels": 8,
+      "agreed": 7,
+      "missed_failures": 0,
+      "false_alarms": 1
+    }
+  },
+  "comparisons": [
+    {
+      "item_id": "en-verdun-saturday-hours/turn-1",
+      "score": "language-consistency",
+      "label": "pass",
+      "judge": "pass",
+      "judge_reason": "The reply is written entirely in English. The clinic/location names are allowed and there are no French words or phrases.",
+      "notes": ""
+    },
+    {
+      "item_id": "en-verdun-saturday-hours/turn-1",
+      "score": "grounded",
+      "label": "pass",
+      "judge": "pass",
+      "judge_reason": "The reply states that the Verdun clinic is closed on Saturdays, which is directly supported by the Verdun hours tool result showing Saturday closed. It also states that the Plateau location is open from nine to one, supported by the tool result's open_elsewhere showing Plateau open Saturday 09:00-13:00. The offer to schedule is a question/offer and does not need factual support. No unsupported or contradictory facts are present.",
+      "notes": ""
+    },
+    {
+      "item_id": "en-verdun-saturday-hours/turn-1",
+      "score": "task-success",
+      "label": "pass",
+      "judge": "pass",
+      "judge_reason": "The reply states that Verdun is closed on Saturdays and offers the Plateau location with hours from nine to one, which in context refers to Saturday hours. This matches the expected behaviour.",
+      "notes": ""
+    },
+    {
+      "item_id": "en-verdun-saturday-hours/turn-1",
+      "score": "phone-style",
+      "label": "pass",
+      "judge": "pass",
+      "judge_reason": "The reply has three short sentences, contains exactly one question, uses no lists/markdown/emojis/URLs/ids, and says the time in a spoken style rather than numeric format. It does not offer specific appointment times, so the two-or-three-times rule does not apply.",
+      "notes": ""
+    },
+    {
+      "item_id": "en-verdun-saturday-hours/turn-1/alt-1",
+      "score": "language-consistency",
+      "label": "fail",
+      "judge": "fail",
+      "judge_reason": "The reply includes the French phrase “Bien sûr!” in an otherwise English response. Since the required language is English and this phrase has an English equivalent, the reply is not entirely in English.",
+      "notes": "This case fails because it combines French and English. Also, 'bien sur' is not synonymous with 'no'."
+    },
+    {
+      "item_id": "en-verdun-saturday-hours/turn-1/alt-1",
+      "score": "grounded",
+      "label": "pass",
+      "judge": "pass",
+      "judge_reason": "The reply states that the Verdun clinic is closed on Saturdays, which is supported by the tool result. It also states that the Plateau location is open from 9 a.m. to 1 p.m. on Saturdays, which is supported by the open_elsewhere Saturday result. The offer to book there is not a factual claim requiring support.",
+      "notes": "This case fails because it combines French and English. Also, 'bien sur' is not synonymous with 'no'."
+    },
+    {
+      "item_id": "en-verdun-saturday-hours/turn-1/alt-1",
+      "score": "task-success",
+      "label": "pass",
+      "judge": "pass",
+      "judge_reason": "The reply states that the Verdun clinic is closed on Saturdays and offers the Plateau location with the correct Saturday hours of 9 a.m. to 1 p.m. The additional booking question is acceptable as a short follow-up offer to help.",
+      "notes": "This case fails because it combines French and English. Also, 'bien sur' is not synonymous with 'no'."
+    },
+    {
+      "item_id": "en-verdun-saturday-hours/turn-1/alt-1",
+      "score": "phone-style",
+      "label": "pass",
+      "judge": "pass",
+      "judge_reason": "The reply has two short sentences, only one question, no lists or forbidden formatting, and the times are spoken naturally as “9 a.m. to 1 p.m.” It does not offer a single appointment time or a long list of appointment times.",
+      "notes": "This case fails because it combines French and English. Also, 'bien sur' is not synonymous with 'no'."
+    },
+    {
+      "item_id": "en-verdun-saturday-hours/turn-1/alt-2",
+      "score": "language-consistency",
+      "label": "pass",
+      "judge": "pass",
+      "judge_reason": "The reply is entirely in English. Place names such as Verdun and Plateau are allowed, and the time format '9 a.m. to 3 p.m.' is appropriate in English.",
+      "notes": "This case fails because the Plateau hours are incorrect. It should be '9 a.m. to 1 p.m.', not '9 a.m. to 3 p.m.'."
+    },
+    {
+      "item_id": "en-verdun-saturday-hours/turn-1/alt-2",
+      "score": "grounded",
+      "label": "fail",
+      "judge": "fail",
+      "judge_reason": "The reply correctly says the Verdun clinic is closed on Saturdays. However, the tool result says the Plateau location is open Saturday from 09:00–13:00, not 9 a.m. to 3 p.m. The stated 3 p.m. closing time is unsupported and contradicts the source.",
+      "notes": "This case fails because the Plateau hours are incorrect. It should be '9 a.m. to 1 p.m.', not '9 a.m. to 3 p.m.'."
+    },
+    {
+      "item_id": "en-verdun-saturday-hours/turn-1/alt-2",
+      "score": "task-success",
+      "label": "fail",
+      "judge": "fail",
+      "judge_reason": "The reply correctly says Verdun is closed on Saturdays and offers the Plateau location, but it gives the Plateau Saturday hours as 9 a.m. to 3 p.m. instead of the expected 9 a.m. to 1 p.m.",
+      "notes": "This case fails because the Plateau hours are incorrect. It should be '9 a.m. to 1 p.m.', not '9 a.m. to 3 p.m.'."
+    },
+    {
+      "item_id": "en-verdun-saturday-hours/turn-1/alt-2",
+      "score": "phone-style",
+      "label": "pass",
+      "judge": "pass",
+      "judge_reason": "The reply has two short sentences, contains only one question, uses no lists, markdown, emojis, URLs, or ids, and the time is spoken naturally as “9 a.m. to 3 p.m.” It does not offer specific appointment times, so the two-or-three-times rule does not apply.",
+      "notes": "This case fails because the Plateau hours are incorrect. It should be '9 a.m. to 1 p.m.', not '9 a.m. to 3 p.m.'."
+    },
+    {
+      "item_id": "fr-plateau-address-then-parking/turn-1",
+      "score": "language-consistency",
+      "label": "pass",
+      "judge": "pass",
+      "judge_reason": "La réponse est entièrement en français. Les éléments comme « Plateau », « rue Saint-Denis », « Montréal » et le code postal font partie de l’adresse ou sont des noms propres autorisés.",
+      "notes": "This fails because the ZIP code should not be included in the address response. It should be '4120 Rue Saint-Denis', not '4120 rue Saint-Denis, Montréal, QC H2W 2M5'."
+    },
+    {
+      "item_id": "fr-plateau-address-then-parking/turn-1",
+      "score": "grounded",
+      "label": "pass",
+      "judge": "pass",
+      "judge_reason": "The reply states that the Plateau clinic address is 4120 rue Saint-Denis, Montréal, QC H2W 2M5, which is directly supported by the tool result for location Plateau and topic address. The closing question does not state an unsupported fact.",
+      "notes": "This fails because the ZIP code should not be included in the address response. It should be '4120 Rue Saint-Denis', not '4120 rue Saint-Denis, Montréal, QC H2W 2M5'."
+    },
+    {
+      "item_id": "fr-plateau-address-then-parking/turn-1",
+      "score": "task-success",
+      "label": "pass",
+      "judge": "pass",
+      "judge_reason": "The reply provides the Plateau clinic address, including the required 4120 rue Saint-Denis, and does not contradict the expected behavior. The brief follow-up question is acceptable.",
+      "notes": "This fails because the ZIP code should not be included in the address response. It should be '4120 Rue Saint-Denis', not '4120 rue Saint-Denis, Montréal, QC H2W 2M5'."
+    },
+    {
+      "item_id": "fr-plateau-address-then-parking/turn-1",
+      "score": "phone-style",
+      "label": "fail",
+      "judge": "pass",
+      "judge_reason": "The reply has two short sentences and only one question. It does not use lists, markdown, emojis, URLs, or slot ids. It does not mention appointment times, so the time-format and appointment-offer rules are not implicated. The postal code/address is not an id in the relevant sense.",
+      "notes": "This fails because the ZIP code should not be included in the address response. It should be '4120 Rue Saint-Denis', not '4120 rue Saint-Denis, Montréal, QC H2W 2M5'."
+    },
+    {
+      "item_id": "fr-plateau-address-then-parking/turn-1/alt-1",
+      "score": "language-consistency",
+      "label": "pass",
+      "judge": "pass",
+      "judge_reason": "The reply is entirely in French. Place/street names and the address/postal code are allowed, and all regular words and phrases are French.",
+      "notes": "The answer is too long for an address request."
+    },
+    {
+      "item_id": "fr-plateau-address-then-parking/turn-1/alt-1",
+      "score": "grounded",
+      "label": "pass",
+      "judge": "pass",
+      "judge_reason": "The reply states the Plateau clinic address as 4120 rue Saint-Denis, Montréal, with postal code H2W 2M5, all of which are directly supported by the tool result. The remaining sentences are offers/questions and do not assert unsupported facts.",
+      "notes": "The answer is too long for an address request."
+    },
+    {
+      "item_id": "fr-plateau-address-then-parking/turn-1/alt-1",
+      "score": "task-success",
+      "label": "pass",
+      "judge": "pass",
+      "judge_reason": "The reply provides the requested Plateau clinic address, including the required '4120 rue Saint-Denis'. It also adds city/postal code from the tool result and a brief offer to help/book, which is allowed.",
+      "notes": "The answer is too long for an address request."
+    },
+    {
+      "item_id": "fr-plateau-address-then-parking/turn-1/alt-1",
+      "score": "phone-style",
+      "label": "fail",
+      "judge": "fail",
+      "judge_reason": "The reply has five short sentences, which exceeds the one-to-three sentence limit, and it asks two questions, exceeding the at-most-one-question limit.",
+      "notes": "The answer is too long for an address request."
+    },
+    {
+      "item_id": "fr-plateau-address-then-parking/turn-2",
+      "score": "language-consistency",
+      "label": "pass",
+      "judge": "pass",
+      "judge_reason": "La réponse est entièrement en français; les noms de lieux comme rue Saint-Denis et Mont-Royal sont permis.",
+      "notes": ""
+    },
+    {
+      "item_id": "fr-plateau-address-then-parking/turn-2",
+      "score": "grounded",
+      "label": "pass",
+      "judge": "pass",
+      "judge_reason": "The reply states that parking is paid on rue Saint-Denis and that Mont-Royal metro station is a five-minute walk away, both directly supported by the parking tool result for the Plateau location. The offer to book an appointment is not a factual claim requiring support. No unsupported or contradictory facts are present.",
+      "notes": ""
+    },
+    {
+      "item_id": "fr-plateau-address-then-parking/turn-2",
+      "score": "task-success",
+      "label": "pass",
+      "judge": "pass",
+      "judge_reason": "The reply states that parking is paid on rue Saint-Denis and that Mont-Royal metro station is a five-minute walk away, matching the expected behaviour. The added offer to book an appointment is a permissible short follow-up question.",
+      "notes": ""
+    },
+    {
+      "item_id": "fr-plateau-address-then-parking/turn-2",
+      "score": "phone-style",
+      "label": "pass",
+      "judge": "pass",
+      "judge_reason": "The reply has three short sentences, contains only one question, has no lists/markdown/emojis/URLs/ids, and does not include any times or appointment time offers. It follows all the specified rules.",
+      "notes": ""
+    },
+    {
+      "item_id": "en-insurers-accepted-and-not/turn-1",
+      "score": "language-consistency",
+      "label": "pass",
+      "judge": "pass",
+      "judge_reason": "The reply is entirely in English. 'Desjardins' is an insurer name and is allowed.",
+      "notes": ""
+    },
+    {
+      "item_id": "en-insurers-accepted-and-not/turn-1",
+      "score": "grounded",
+      "label": "pass",
+      "judge": "pass",
+      "judge_reason": "The tool result lists \"Desjardins Insurance\" among accepted insurers, so the statement that they accept Desjardins insurance is supported. The offer to schedule an appointment is a question/offer and does not require factual support.",
+      "notes": ""
+    },
+    {
+      "item_id": "en-insurers-accepted-and-not/turn-1",
+      "score": "task-success",
+      "label": "pass",
+      "judge": "pass",
+      "judge_reason": "The reply clearly says that Desjardins insurance is accepted, matching the expected behaviour. The added offer to schedule an appointment is a short follow-up offer and is allowed.",
+      "notes": ""
+    },
+    {
+      "item_id": "en-insurers-accepted-and-not/turn-1",
+      "score": "phone-style",
+      "label": "pass",
+      "judge": "pass",
+      "judge_reason": "The reply has two short sentences, includes only one question, and contains no lists, markdown, emojis, URLs, IDs, or improperly formatted times. It does not offer appointment times, so the appointment-time rule is not applicable.",
+      "notes": ""
+    },
+    {
+      "item_id": "en-insurers-accepted-and-not/turn-2",
+      "score": "language-consistency",
+      "label": "pass",
+      "judge": "pass",
+      "judge_reason": "The reply is entirely in English. 'Industrial Alliance' is an insurer/company name and is allowed.",
+      "notes": ""
+    },
+    {
+      "item_id": "en-insurers-accepted-and-not/turn-2",
+      "score": "grounded",
+      "label": "pass",
+      "judge": "fail",
+      "judge_reason": "The sources list accepted insurers as Sun Life, Manulife, Canada Life, Desjardins Insurance, Green Shield Canada, and Blue Cross. Industrial Alliance is not listed, but the tool result does not explicitly state that insurers not listed are not accepted. Therefore the reply's factual claim that the clinic does not accept Industrial Alliance is not supported by the provided sources. The offer to discuss appointment times is not a factual claim.",
+      "notes": ""
+    },
+    {
+      "item_id": "en-insurers-accepted-and-not/turn-2",
+      "score": "task-success",
+      "label": "pass",
+      "judge": "fail",
+      "judge_reason": "The expected behavior requires saying Industrial Alliance is not on the list of accepted insurers, without claiming anything else about it. The reply says 'we do not accept Industrial Alliance insurance,' which is a stronger claim than merely that it is not on the list. This violates the instruction not to claim anything else about it.",
+      "notes": ""
+    },
+    {
+      "item_id": "en-insurers-accepted-and-not/turn-2",
+      "score": "phone-style",
+      "label": "pass",
+      "judge": "pass",
+      "judge_reason": "The reply has two short sentences, contains exactly one question, has no lists, markdown, emojis, URLs, ids, or improperly formatted times, and it does not offer appointment times, so the two-or-three times rule is not triggered.",
+      "notes": ""
+    },
+    {
+      "item_id": "fr-saint-laurent-parking/turn-1",
+      "score": "language-consistency",
+      "label": "pass",
+      "judge": "pass",
+      "judge_reason": "La réponse est entièrement en français. Le code « P1 » est une désignation de niveau de stationnement et ne constitue pas un mot anglais.",
+      "notes": ""
+    },
+    {
+      "item_id": "fr-saint-laurent-parking/turn-1",
+      "score": "grounded",
+      "label": "pass",
+      "judge": "pass",
+      "judge_reason": "The reply states that there is free underground parking in the building at level P1 for the Saint-Laurent clinic, which is directly supported by the tool result. The offer/question about needing an appointment is not a factual claim requiring support.",
+      "notes": ""
+    },
+    {
+      "item_id": "fr-saint-laurent-parking/turn-1",
+      "score": "task-success",
+      "label": "pass",
+      "judge": "pass",
+      "judge_reason": "The reply states that there is free underground parking in the building on level P1, which matches the expected behaviour. The follow-up question is acceptable.",
+      "notes": ""
+    },
+    {
+      "item_id": "fr-saint-laurent-parking/turn-1",
+      "score": "phone-style",
+      "label": "pass",
+      "judge": "pass",
+      "judge_reason": "The reply has two short sentences and only one question. It does not include lists, markdown, emojis, URLs, ids, or improperly formatted times, and it does not offer appointment times. It follows all the specified rules.",
+      "notes": ""
+    },
+    {
+      "item_id": "fr-saint-laurent-parking/turn-1/alt-1",
+      "score": "language-consistency",
+      "label": "pass",
+      "judge": "pass",
+      "judge_reason": "La réponse est entièrement en français; les éléments comme « P1 » et « 5 $ » ne constituent pas de l’anglais.",
+      "notes": "This case fails because the information is incorrect. Parking for the Saint-Laurent location is free, not 5 $. Also, it should not use a '$' special case."
+    },
+    {
+      "item_id": "fr-saint-laurent-parking/turn-1/alt-1",
+      "score": "grounded",
+      "label": "fail",
+      "judge": "fail",
+      "judge_reason": "The tool result supports that the Saint-Laurent location has underground parking in the building on level P1, but it specifically says the parking is free. The reply states it costs $5 per hour, which contradicts the source and is unsupported.",
+      "notes": "This case fails because the information is incorrect. Parking for the Saint-Laurent location is free, not 5 $. Also, it should not use a '$' special case."
+    },
+    {
+      "item_id": "fr-saint-laurent-parking/turn-1/alt-1",
+      "score": "task-success",
+      "label": "pass",
+      "judge": "fail",
+      "judge_reason": "The reply correctly mentions underground parking in the building on level P1, but it incorrectly says it costs $5 per hour. The expected behaviour specifies that the parking is free.",
+      "notes": "This case fails because the information is incorrect. Parking for the Saint-Laurent location is free, not 5 $. Also, it should not use a '$' special case."
+    },
+    {
+      "item_id": "fr-saint-laurent-parking/turn-1/alt-1",
+      "score": "phone-style",
+      "label": "fail",
+      "judge": "fail",
+      "judge_reason": "The reply has two short sentences and only one question, but it includes an identifier, “P1,” which breaks the rule against ids.",
+      "notes": "This case fails because the information is incorrect. Parking for the Saint-Laurent location is free, not 5 $. Also, it should not use a '$' special case."
+    },
+    {
+      "item_id": "en-plateau-cleaning-next-week/turn-1",
+      "score": "language-consistency",
+      "label": "pass",
+      "judge": "pass",
+      "judge_reason": "The reply is entirely in English. The place name “Plateau” is allowed, and time formats like “8 a.m.” and “9 a.m.” are acceptable in English.",
+      "notes": ""
+    },
+    {
+      "item_id": "en-plateau-cleaning-next-week/turn-1",
+      "score": "grounded",
+      "label": "pass",
+      "judge": "pass",
+      "judge_reason": "Every factual claim is supported: the tool shows many openings for cleaning at the Plateau location during next week, and Monday 2026-11-02 has available slots at 8:00 and 9:00. The provided date context confirms November 2, 2026 is a Monday.",
+      "notes": ""
+    },
+    {
+      "item_id": "en-plateau-cleaning-next-week/turn-1",
+      "score": "task-success",
+      "label": "pass",
+      "judge": "pass",
+      "judge_reason": "The reply offers two available cleaning times next week at the Plateau clinic in a natural spoken format and asks the caller to choose/book one of them. The offered times match the availability results.",
+      "notes": ""
+    },
+    {
+      "item_id": "en-plateau-cleaning-next-week/turn-1",
+      "score": "phone-style",
+      "label": "pass",
+      "judge": "pass",
+      "judge_reason": "The reply has two short sentences and only one question. It has no lists, markdown, emojis, URLs, or IDs. The times are spoken naturally. It offers two appointment times, Monday, November 2nd at 8 a.m. and 9 a.m., which is allowed.",
+      "notes": ""
+    },
+    {
+      "item_id": "en-plateau-cleaning-next-week/turn-1",
+      "score": "availability-correct",
+      "label": "pass",
+      "judge": "pass",
+      "judge_reason": "offered 2 real, matching times",
+      "notes": "",
+      "extracted": {
+        "offered": [
+          {
+            "date": "2026-11-02",
+            "start_time": "08:00",
+            "location": "Plateau"
+          },
+          {
+            "date": "2026-11-02",
+            "start_time": "09:00",
+            "location": "Plateau"
+          }
+        ],
+        "says_request_unavailable": false
+      }
+    },
+    {
+      "item_id": "en-plateau-cleaning-next-week/turn-1/alt-1",
+      "score": "language-consistency",
+      "label": "pass",
+      "judge": "pass",
+      "judge_reason": "The reply is entirely in English. The place name “Plateau” appears only in the caller message, not the reply, and the date/time slot formatting is language-neutral rather than French.",
+      "notes": "This case fails because it should never repeat availabilities times in such a format: YYYY-MM-DD. It should also never respond with the slot number."
+    },
+    {
+      "item_id": "en-plateau-cleaning-next-week/turn-1/alt-1",
+      "score": "grounded",
+      "label": "pass",
+      "judge": "pass",
+      "judge_reason": "All listed appointment openings are supported by the availability tool for the Plateau cleaning search next week. The dates and times shown appear in the returned slots, and slot IDs 1075 and 1084 match the 2026-11-02T08:00 openings. No unsupported clinic details, policies, addresses, or other facts are added.",
+      "notes": "This case fails because it should never repeat availabilities times in such a format: YYYY-MM-DD. It should also never respond with the slot number."
+    },
+    {
+      "item_id": "en-plateau-cleaning-next-week/turn-1/alt-1",
+      "score": "task-success",
+      "label": "pass",
+      "judge": "fail",
+      "judge_reason": "The reply asks which one works, but it lists four options instead of two or three, includes duplicate 8:00 times, and presents them in ISO/slot format rather than natural spoken times like “Monday at 9 a.m.”",
+      "notes": "This case fails because it should never repeat availabilities times in such a format: YYYY-MM-DD. It should also never respond with the slot number."
+    },
+    {
+      "item_id": "en-plateau-cleaning-next-week/turn-1/alt-1",
+      "score": "phone-style",
+      "label": "fail",
+      "judge": "fail",
+      "judge_reason": "The reply uses a markdown-style list, includes slot IDs, gives times in ISO format rather than spoken form, and offers four appointment times instead of two or three.",
+      "notes": "This case fails because it should never repeat availabilities times in such a format: YYYY-MM-DD. It should also never respond with the slot number."
+    },
+    {
+      "item_id": "en-plateau-cleaning-next-week/turn-1/alt-1",
+      "score": "availability-correct",
+      "label": "pass",
+      "judge": "pass",
+      "judge_reason": "offered 4 real, matching times",
+      "notes": "This case fails because it should never repeat availabilities times in such a format: YYYY-MM-DD. It should also never respond with the slot number.",
+      "extracted": {
+        "offered": [
+          {
+            "date": "2026-11-02",
+            "start_time": "08:00",
+            "location": "Plateau"
+          },
+          {
+            "date": "2026-11-02",
+            "start_time": "08:00",
+            "location": "Plateau"
+          },
+          {
+            "date": "2026-11-02",
+            "start_time": "09:00",
+            "location": "Plateau"
+          },
+          {
+            "date": "2026-11-02",
+            "start_time": "10:00",
+            "location": "Plateau"
+          }
+        ],
+        "says_request_unavailable": false
+      }
+    },
+    {
+      "item_id": "fr-verdun-checkup-thursday-afternoon/turn-1",
+      "score": "language-consistency",
+      "label": "pass",
+      "judge": "pass",
+      "judge_reason": "La réponse est entièrement en français. Les noms de lieux comme Verdun et Saint-Laurent sont permis.",
+      "notes": "This is a big fail. The Verdun location is open every Thursday and is therefore open next week as it pertains to this call. Anytime a location is mentioned by the caller, the 'get_clinic_info' tool should be called to avoid halucinations."
+    },
+    {
+      "item_id": "fr-verdun-checkup-thursday-afternoon/turn-1",
+      "score": "grounded",
+      "label": "fail",
+      "judge": "fail",
+      "judge_reason": "The reply states that the Verdun clinic is closed on Thursday next week, but the sources do not support that; the availability tool only returned some Verdun openings for the week with earliest slots listed, not closure information for Thursday. It also states there are availabilities at Saint-Laurent, but no tool result or conversation source provides Saint-Laurent availability.",
+      "notes": "This is a big fail. The Verdun location is open every Thursday and is therefore open next week as it pertains to this call. Anytime a location is mentioned by the caller, the 'get_clinic_info' tool should be called to avoid halucinations."
+    },
+    {
+      "item_id": "fr-verdun-checkup-thursday-afternoon/turn-1",
+      "score": "task-success",
+      "label": "pass",
+      "judge": "fail",
+      "judge_reason": "The reply claims the Verdun clinic is closed that Thursday and offers Saint-Laurent, but neither fact is supported by the availability results. It also does not offer confirmed Thursday afternoon Verdun checkup times or closest confirmed alternatives from the tool results.",
+      "notes": "This is a big fail. The Verdun location is open every Thursday and is therefore open next week as it pertains to this call. Anytime a location is mentioned by the caller, the 'get_clinic_info' tool should be called to avoid halucinations."
+    },
+    {
+      "item_id": "fr-verdun-checkup-thursday-afternoon/turn-1",
+      "score": "phone-style",
+      "label": "pass",
+      "judge": "pass",
+      "judge_reason": "The reply has three short sentences, includes only one question, uses no lists or markdown, and does not include any improperly formatted times or appointment slot identifiers. It does not offer specific appointment times, so the two-or-three-times rule is not triggered.",
+      "notes": "This is a big fail. The Verdun location is open every Thursday and is therefore open next week as it pertains to this call. Anytime a location is mentioned by the caller, the 'get_clinic_info' tool should be called to avoid halucinations."
+    },
+    {
+      "item_id": "fr-verdun-checkup-thursday-afternoon/turn-1",
+      "score": "availability-correct",
+      "label": "fail",
+      "judge": "fail",
+      "judge_reason": "said the request was unavailable, but 10 matching slots were open; offered no times, but 10 matching slots were open",
+      "notes": "This is a big fail. The Verdun location is open every Thursday and is therefore open next week as it pertains to this call. Anytime a location is mentioned by the caller, the 'get_clinic_info' tool should be called to avoid halucinations.",
+      "extracted": {
+        "offered": [],
+        "says_request_unavailable": true
+      }
+    },
+    {
+      "item_id": "en-saint-laurent-cleaning-at-1030/turn-1",
+      "score": "language-consistency",
+      "label": "pass",
+      "judge": "pass",
+      "judge_reason": "The reply is entirely in English. The place name “Saint-Laurent” is allowed and does not count against it, and “10 a.m.” is the standard English time format.",
+      "notes": ""
+    },
+    {
+      "item_id": "en-saint-laurent-cleaning-at-1030/turn-1",
+      "score": "grounded",
+      "label": "pass",
+      "judge": "pass",
+      "judge_reason": "The reply is supported by the provided date context and tool result: next Wednesday is 2026-11-04, the Saint-Laurent cleaning availability on that date includes open slots but not 10:30, and it does include a 10:00 slot.",
+      "notes": ""
+    },
+    {
+      "item_id": "en-saint-laurent-cleaning-at-1030/turn-1",
+      "score": "task-success",
+      "label": "pass",
+      "judge": "pass",
+      "judge_reason": "The reply clearly states that 10:30 is not available and offers a close open cleaning time on the same Wednesday, 10:00 a.m., which is earlier and present in the availability results. This satisfies the expected behaviour.",
+      "notes": ""
+    },
+    {
+      "item_id": "en-saint-laurent-cleaning-at-1030/turn-1",
+      "score": "phone-style",
+      "label": "pass",
+      "judge": "fail",
+      "judge_reason": "The reply has two short sentences and only one question, but it uses the time format \"10:30\" instead of a spoken form like \"10:30 a.m.\" or \"ten thirty.\" It also offers only one appointment time, \"10 a.m.,\" rather than two or three.",
+      "notes": ""
+    },
+    {
+      "item_id": "en-saint-laurent-cleaning-at-1030/turn-1",
+      "score": "availability-correct",
+      "label": "pass",
+      "judge": "pass",
+      "judge_reason": "offered 1 real, matching times",
+      "notes": "",
+      "extracted": {
+        "offered": [
+          {
+            "date": "2026-11-04",
+            "start_time": "10:00",
+            "location": "Saint-Laurent"
+          }
+        ],
+        "says_request_unavailable": true
+      }
+    },
+    {
+      "item_id": "en-saint-laurent-cleaning-at-1030/turn-1/alt-1",
+      "score": "language-consistency",
+      "label": "pass",
+      "judge": "pass",
+      "judge_reason": "The reply is entirely in English. The place name Saint-Laurent appears only in the caller's text, not the checked reply, and the reply contains no French words or phrases.",
+      "notes": "This is a fail because there are no slots available at 15 min increments. The availability is correct from the tool, but the slot proposed is absolutely not part of that availability."
+    },
+    {
+      "item_id": "en-saint-laurent-cleaning-at-1030/turn-1/alt-1",
+      "score": "grounded",
+      "label": "fail",
+      "judge": "fail",
+      "judge_reason": "The tool result supports that next Wednesday is 2026-11-04 and lists available cleaning slots at Saint-Laurent on that date; 10:30 is not among them. However, the reply offers 10:15 and 11:45, which are not shown in the tool results and are therefore unsupported.",
+      "notes": "This is a fail because there are no slots available at 15 min increments. The availability is correct from the tool, but the slot proposed is absolutely not part of that availability."
+    },
+    {
+      "item_id": "en-saint-laurent-cleaning-at-1030/turn-1/alt-1",
+      "score": "task-success",
+      "label": "pass",
+      "judge": "fail",
+      "judge_reason": "The reply correctly says 10:30 is not available, but it offers 10:15 and 11:45, which are not open slots in the tool results. The closest available cleaning times that same Wednesday are 10:00 and 11:00.",
+      "notes": "This is a fail because there are no slots available at 15 min increments. The availability is correct from the tool, but the slot proposed is absolutely not part of that availability."
+    },
+    {
+      "item_id": "en-saint-laurent-cleaning-at-1030/turn-1/alt-1",
+      "score": "phone-style",
+      "label": "pass",
+      "judge": "fail",
+      "judge_reason": "The reply uses colon-formatted times like \"10:30,\" \"10:15,\" and \"11:45\" instead of spoken forms such as \"ten thirty\" or \"10:30 a.m.\" It otherwise stays within the sentence and question limits and offers two times.",
+      "notes": "This is a fail because there are no slots available at 15 min increments. The availability is correct from the tool, but the slot proposed is absolutely not part of that availability."
+    },
+    {
+      "item_id": "en-saint-laurent-cleaning-at-1030/turn-1/alt-1",
+      "score": "availability-correct",
+      "label": "pass",
+      "judge": "fail",
+      "judge_reason": "offered Saint-Laurent 2026-11-04T10:15, which is not an open cleaning slot; offered Saint-Laurent 2026-11-04T11:45, which is not an open cleaning slot",
+      "notes": "This is a fail because there are no slots available at 15 min increments. The availability is correct from the tool, but the slot proposed is absolutely not part of that availability.",
+      "extracted": {
+        "offered": [
+          {
+            "date": "2026-11-04",
+            "start_time": "10:15",
+            "location": "Saint-Laurent"
+          },
+          {
+            "date": "2026-11-04",
+            "start_time": "11:45",
+            "location": "Saint-Laurent"
+          }
+        ],
+        "says_request_unavailable": true
+      }
+    },
+    {
+      "item_id": "en-saint-laurent-cleaning-at-1030/turn-1/alt-2",
+      "score": "language-consistency",
+      "label": "pass",
+      "judge": "pass",
+      "judge_reason": "The reply is entirely in English. The place name Saint-Laurent appears only in the caller's message, not the reply, and the time format '10 a.m.'/'11 a.m.' is appropriate for English.",
+      "notes": "This case passes, but is slightly informal with how it replies. It should start with 'Sorry...' or 'No, there is no availability at...' instead of '10:30 isn't available'."
+    },
+    {
+      "item_id": "en-saint-laurent-cleaning-at-1030/turn-1/alt-2",
+      "score": "grounded",
+      "label": "pass",
+      "judge": "pass",
+      "judge_reason": "The reply says 10:30 is not available next Wednesday and offers 10 a.m. or 11 a.m. that day. The tool result for Saint-Laurent cleaning availability on Wednesday 2026-11-04 lists open slots at 10:00 and 11:00, and does not list 10:30. The date reference to next Wednesday is supported by the provided dates. No unsupported facts are stated.",
+      "notes": "This case passes, but is slightly informal with how it replies. It should start with 'Sorry...' or 'No, there is no availability at...' instead of '10:30 isn't available'."
+    },
+    {
+      "item_id": "en-saint-laurent-cleaning-at-1030/turn-1/alt-2",
+      "score": "task-success",
+      "label": "pass",
+      "judge": "pass",
+      "judge_reason": "The reply clearly states that 10:30 is not available and offers the closest open cleaning times on the same Wednesday, 10 a.m. and 11 a.m., with a follow-up question.",
+      "notes": "This case passes, but is slightly informal with how it replies. It should start with 'Sorry...' or 'No, there is no availability at...' instead of '10:30 isn't available'."
+    },
+    {
+      "item_id": "en-saint-laurent-cleaning-at-1030/turn-1/alt-2",
+      "score": "phone-style",
+      "label": "pass",
+      "judge": "fail",
+      "judge_reason": "The reply has two short sentences and only one question, and it offers two alternative appointment times. However, it says \"10:30\" with a colon instead of a spoken form like \"ten thirty,\" which breaks the time-format rule.",
+      "notes": "This case passes, but is slightly informal with how it replies. It should start with 'Sorry...' or 'No, there is no availability at...' instead of '10:30 isn't available'."
+    },
+    {
+      "item_id": "en-saint-laurent-cleaning-at-1030/turn-1/alt-2",
+      "score": "availability-correct",
+      "label": "pass",
+      "judge": "pass",
+      "judge_reason": "offered 2 real, matching times",
+      "notes": "This case passes, but is slightly informal with how it replies. It should start with 'Sorry...' or 'No, there is no availability at...' instead of '10:30 isn't available'.",
+      "extracted": {
+        "offered": [
+          {
+            "date": "2026-11-04",
+            "start_time": "10:00",
+            "location": "Saint-Laurent"
+          },
+          {
+            "date": "2026-11-04",
+            "start_time": "11:00",
+            "location": "Saint-Laurent"
+          }
+        ],
+        "says_request_unavailable": true
+      }
+    },
+    {
+      "item_id": "en-verdun-cleaning-saturday/turn-1",
+      "score": "language-consistency",
+      "label": "pass",
+      "judge": "pass",
+      "judge_reason": "The reply is entirely in English. The place name “Verdun” is allowed, and time expressions like “8 a.m.” are appropriate in English.",
+      "notes": "This case is a fail. Saturday November 2nd is not a Saturday, it is a Monday. Failures like this are critical."
+    },
+    {
+      "item_id": "en-verdun-cleaning-saturday/turn-1",
+      "score": "grounded",
+      "label": "fail",
+      "judge": "fail",
+      "judge_reason": "The reply incorrectly says Saturday, November 2nd. The provided dates state that 2026-11-02 is Monday, while the Saturday of next week is 2026-11-07. The only availability tool result is for Monday, November 2, not Saturday, so offering 8 a.m. or 10 a.m. for the requested Saturday is unsupported.",
+      "notes": "This case is a fail. Saturday November 2nd is not a Saturday, it is a Monday. Failures like this are critical."
+    },
+    {
+      "item_id": "en-verdun-cleaning-saturday/turn-1",
+      "score": "task-success",
+      "label": "pass",
+      "judge": "fail",
+      "judge_reason": "The reply directly contradicts the expected behavior. It says Verdun is available on Saturday, November 2nd and offers times there, instead of saying Verdun is closed on Saturdays and offering either Saturday cleaning times at Plateau or weekday times at Verdun.",
+      "notes": "This case is a fail. Saturday November 2nd is not a Saturday, it is a Monday. Failures like this are critical."
+    },
+    {
+      "item_id": "en-verdun-cleaning-saturday/turn-1",
+      "score": "phone-style",
+      "label": "pass",
+      "judge": "pass",
+      "judge_reason": "The reply has two short sentences, only one question, no lists or markdown, and the times are spoken naturally as “8 a.m.” and “10 a.m.” It offers exactly two appointment times.",
+      "notes": "This case is a fail. Saturday November 2nd is not a Saturday, it is a Monday. Failures like this are critical."
+    },
+    {
+      "item_id": "en-verdun-cleaning-saturday/turn-1",
+      "score": "availability-correct",
+      "label": "fail",
+      "judge": "fail",
+      "judge_reason": "didn't say the request was unavailable, but no matching slot was open",
+      "notes": "This case is a fail. Saturday November 2nd is not a Saturday, it is a Monday. Failures like this are critical.",
+      "extracted": {
+        "offered": [
+          {
+            "date": "2026-11-02",
+            "start_time": "08:00",
+            "location": "Verdun"
+          },
+          {
+            "date": "2026-11-02",
+            "start_time": "10:00",
+            "location": "Verdun"
+          }
+        ],
+        "says_request_unavailable": false
+      }
+    },
+    {
+      "item_id": "en-verdun-cleaning-saturday/turn-1/alt-1",
+      "score": "language-consistency",
+      "label": "pass",
+      "judge": "pass",
+      "judge_reason": "The reply is written entirely in English. The only place names, Verdun and Plateau, are allowed and do not count against it.",
+      "notes": "This case fails. The availability is correct, but their is no way the agent could have known that Verdun was closed Saturdays and Plateau is open Saturdays because it never called the 'get_clinic_info' tool."
+    },
+    {
+      "item_id": "en-verdun-cleaning-saturday/turn-1/alt-1",
+      "score": "grounded",
+      "label": "fail",
+      "judge": "fail",
+      "judge_reason": "The reply states that Verdun is closed on Saturdays and that the Plateau clinic has cleaning openings on that Saturday morning. The only tool result provided is for Verdun cleaning availability on Monday 2026-11-02, and there is no source support for Verdun’s Saturday hours/closure or any Plateau availability on Saturday 2026-11-07.",
+      "notes": "This case fails. The availability is correct, but their is no way the agent could have known that Verdun was closed Saturdays and Plateau is open Saturdays because it never called the 'get_clinic_info' tool."
+    },
+    {
+      "item_id": "en-verdun-cleaning-saturday/turn-1/alt-1",
+      "score": "task-success",
+      "label": "pass",
+      "judge": "pass",
+      "judge_reason": "The reply correctly states that Verdun is closed on Saturdays and offers open Saturday cleaning times at Plateau. The expected behavior allows offering either Plateau Saturday cleaning times or weekday Verdun times. It does not conflict with the tool result in any relevant way.",
+      "notes": "This case fails. The availability is correct, but their is no way the agent could have known that Verdun was closed Saturdays and Plateau is open Saturdays because it never called the 'get_clinic_info' tool."
+    },
+    {
+      "item_id": "en-verdun-cleaning-saturday/turn-1/alt-1",
+      "score": "phone-style",
+      "label": "pass",
+      "judge": "pass",
+      "judge_reason": "The reply has two short sentences and only one question. It contains no lists, markdown, emojis, URLs, ids, or improperly formatted times. It does not actually offer specific appointment times, so the rule about offering two or three times is not triggered.",
+      "notes": "This case fails. The availability is correct, but their is no way the agent could have known that Verdun was closed Saturdays and Plateau is open Saturdays because it never called the 'get_clinic_info' tool."
+    },
+    {
+      "item_id": "en-verdun-cleaning-saturday/turn-1/alt-1",
+      "score": "availability-correct",
+      "label": "pass",
+      "judge": "pass",
+      "judge_reason": "offered 0 real, matching times",
+      "notes": "This case fails. The availability is correct, but their is no way the agent could have known that Verdun was closed Saturdays and Plateau is open Saturdays because it never called the 'get_clinic_info' tool.",
+      "extracted": {
+        "offered": [],
+        "says_request_unavailable": true
+      }
+    },
+    {
+      "item_id": "en-cleaning-price/turn-1",
+      "score": "language-consistency",
+      "label": "pass",
+      "judge": "pass",
+      "judge_reason": "The reply is entirely in English. There are no French words or phrases requiring translation.",
+      "notes": ""
+    },
+    {
+      "item_id": "en-cleaning-price/turn-1",
+      "score": "grounded",
+      "label": "pass",
+      "judge": "fail",
+      "judge_reason": "The reply says the agent does not have pricing information, which is supported by the absence of any tool results or prior pricing information. The suggestion to check with the office directly or visit the website is a generic suggestion, but 'our website' implies the clinic has a website, which was not provided in the sources. Because every factual claim must be supported, this unsupported implication makes the reply fail.",
+      "notes": ""
+    },
+    {
+      "item_id": "en-cleaning-price/turn-1",
+      "score": "task-success",
+      "label": "pass",
+      "judge": "pass",
+      "judge_reason": "The reply honestly states it doesn't have pricing information and does not provide or estimate any price. It offers further assistance. This matches the expected behaviour.",
+      "notes": ""
+    },
+    {
+      "item_id": "en-cleaning-price/turn-1",
+      "score": "phone-style",
+      "label": "pass",
+      "judge": "pass",
+      "judge_reason": "The reply has three short sentences, includes only one question, and contains no lists, markdown, emojis, URLs, ids, or improperly formatted times. It does not offer appointment times, so that rule is not implicated.",
+      "notes": ""
+    },
+    {
+      "item_id": "en-cleaning-price/turn-1/alt-1",
+      "score": "language-consistency",
+      "label": "pass",
+      "judge": "pass",
+      "judge_reason": "The reply is entirely in English. There are no French words or phrases.",
+      "notes": "This case is a big fail. There is no grounded information on prices which means the agent's response is completely halucinated."
+    },
+    {
+      "item_id": "en-cleaning-price/turn-1/alt-1",
+      "score": "grounded",
+      "label": "fail",
+      "judge": "fail",
+      "judge_reason": "The reply states that a cleaning is usually about 150 dollars and that the cost depends on insurance. No tool results, prior conversation, or provided dates support any pricing or insurance-dependence information. The booking question is permissible, but the factual price/policy claims are unsupported.",
+      "notes": "This case is a big fail. There is no grounded information on prices which means the agent's response is completely halucinated."
+    },
+    {
+      "item_id": "en-cleaning-price/turn-1/alt-1",
+      "score": "task-success",
+      "label": "fail",
+      "judge": "fail",
+      "judge_reason": "The expected behaviour requires the agent to say it does not have pricing information and not give or estimate any price. The reply gives an estimated price of about $150 and says it depends on insurance, so it violates the instruction.",
+      "notes": "This case is a big fail. There is no grounded information on prices which means the agent's response is completely halucinated."
+    },
+    {
+      "item_id": "en-cleaning-price/turn-1/alt-1",
+      "score": "phone-style",
+      "label": "pass",
+      "judge": "pass",
+      "judge_reason": "The reply has two short sentences, includes only one question, and contains no lists, markdown, emojis, URLs, ids, or improperly formatted times. It does not offer appointment times, so the two-or-three-times rule is not applicable.",
+      "notes": "This case is a big fail. There is no grounded information on prices which means the agent's response is completely halucinated."
+    },
+    {
+      "item_id": "switch-english-to-french/turn-1",
+      "score": "language-consistency",
+      "label": "pass",
+      "judge": "pass",
+      "judge_reason": "The reply is entirely in English. 'Saint-Laurent' is a place name and is allowed. Time formatting like '8 a.m. to 5 p.m.' is standard English.",
+      "notes": ""
+    },
+    {
+      "item_id": "switch-english-to-french/turn-1",
+      "score": "grounded",
+      "label": "pass",
+      "judge": "pass",
+      "judge_reason": "The reply states that the Saint-Laurent location is open 8 a.m. to 5 p.m. Monday through Friday and closed on weekends. This is directly supported by the tool result showing Monday-Friday 08:00-17:00 and Saturday/Sunday closed for Saint-Laurent. The scheduling question is an offer to help, not an unsupported factual claim.",
+      "notes": ""
+    },
+    {
+      "item_id": "switch-english-to-french/turn-1",
+      "score": "task-success",
+      "label": "pass",
+      "judge": "pass",
+      "judge_reason": "The reply states that the Saint-Laurent location is open Monday to Friday from 8 a.m. to 5 p.m., which matches the expected behaviour. The additional note about being closed on weekends is consistent with the tool result, and the follow-up scheduling question is acceptable.",
+      "notes": ""
+    },
+    {
+      "item_id": "switch-english-to-french/turn-1",
+      "score": "phone-style",
+      "label": "pass",
+      "judge": "pass",
+      "judge_reason": "The reply has three short sentences, includes only one question, uses spoken time formats, and contains no lists, markdown, URLs, or ids. It does not offer appointment times, so the two-or-three-times rule is not triggered.",
+      "notes": ""
+    },
+    {
+      "item_id": "switch-english-to-french/turn-2",
+      "score": "language-consistency",
+      "label": "pass",
+      "judge": "pass",
+      "judge_reason": "The reply is entirely in English. The location names “Saint-Laurent” and “Plateau” are allowed, and “9 a.m.” is appropriate in English.",
+      "notes": ""
+    },
+    {
+      "item_id": "switch-english-to-french/turn-2",
+      "score": "grounded",
+      "label": "pass",
+      "judge": "pass",
+      "judge_reason": "The reply says Saint-Laurent is closed on Saturdays, which is supported by the tool result. It says the Plateau location is open from 9 a.m. to 1 p.m. on Saturdays, supported by the open_elsewhere Saturday result showing Plateau 09:00-13:00. The offer to make an appointment is not a factual claim requiring support. No unsupported or contradictory facts are present.",
+      "notes": ""
+    },
+    {
+      "item_id": "switch-english-to-french/turn-2",
+      "score": "task-success",
+      "label": "pass",
+      "judge": "pass",
+      "judge_reason": "The reply is in English, states that Saint-Laurent is closed on Saturdays, and says Plateau is open from 9 a.m. to 1 p.m. The added appointment offer is acceptable as a short follow-up.",
+      "notes": ""
+    },
+    {
+      "item_id": "switch-english-to-french/turn-2",
+      "score": "phone-style",
+      "label": "pass",
+      "judge": "pass",
+      "judge_reason": "The reply has three short sentences, includes only one question, uses no lists or markdown, and says the time in a natural spoken format. It does not offer a specific appointment time, so the two-or-three-times rule does not apply.",
+      "notes": ""
+    },
+    {
+      "item_id": "switch-english-to-french/turn-2/alt-1",
+      "score": "language-consistency",
+      "label": "fail",
+      "judge": "fail",
+      "judge_reason": "The reply is written in French (e.g., “Le samedi… est fermée… Voulez-vous…”), not English. Place names like Saint-Laurent and Plateau are allowed, but the rest of the sentence is not in the required language.",
+      "notes": "This case is a fail because the agent switched to French without explicitly being asked to."
+    },
+    {
+      "item_id": "switch-english-to-french/turn-2/alt-1",
+      "score": "grounded",
+      "label": "pass",
+      "judge": "pass",
+      "judge_reason": "The reply states that Saint-Laurent is closed on Saturday, which is supported by the tool result. It also states that the Plateau location is open Saturday from 09:00 to 13:00, which is supported by the tool result's open_elsewhere.saturday entry. The offer to book there is a question/offer and does not need factual support beyond the referenced location availability, which is supported.",
+      "notes": "This case is a fail because the agent switched to French without explicitly being asked to."
+    },
+    {
+      "item_id": "switch-english-to-french/turn-2/alt-1",
+      "score": "task-success",
+      "label": "pass",
+      "judge": "fail",
+      "judge_reason": "The reply gives the correct information that Saint-Laurent is closed Saturdays and Plateau is open 9 a.m. to 1 p.m., but it does not reply in English as required by the expected behaviour.",
+      "notes": "This case is a fail because the agent switched to French without explicitly being asked to."
+    },
+    {
+      "item_id": "switch-english-to-french/turn-2/alt-1",
+      "score": "phone-style",
+      "label": "pass",
+      "judge": "pass",
+      "judge_reason": "The reply has two short sentences, only one question, no lists or forbidden formatting, and the time is spoken naturally as “9 h à 13 h.” It does not offer appointment time options, so the two-or-three-times rule is not triggered.",
+      "notes": "This case is a fail because the agent switched to French without explicitly being asked to."
+    },
+    {
+      "item_id": "bluecross-french-insurer/turn-1",
+      "score": "language-consistency",
+      "label": "pass",
+      "judge": "pass",
+      "judge_reason": "The reply is entirely in French. The insurer name “Croix Bleue” is allowed and does not count against it.",
+      "notes": ""
+    },
+    {
+      "item_id": "bluecross-french-insurer/turn-1",
+      "score": "grounded",
+      "label": "pass",
+      "judge": "pass",
+      "judge_reason": "The reply states that the clinic accepts Blue Cross/Croix Bleue, which is directly supported by the tool result listing Blue Cross among accepted insurers. The offer to schedule an appointment is not a factual claim requiring support.",
+      "notes": ""
+    },
+    {
+      "item_id": "bluecross-french-insurer/turn-1",
+      "score": "task-success",
+      "label": "pass",
+      "judge": "pass",
+      "judge_reason": "The reply clearly says that Blue Cross/Croix Bleue is accepted, matching the tool result and expected behaviour. The follow-up offer to book an appointment is acceptable.",
+      "notes": ""
+    },
+    {
+      "item_id": "bluecross-french-insurer/turn-1",
+      "score": "phone-style",
+      "label": "pass",
+      "judge": "pass",
+      "judge_reason": "The reply has two short sentences, includes only one question, uses no lists/markdown/emojis/URLs/ids, and does not mention any times or offer appointment slots.",
+      "notes": ""
+    },
+    {
+      "item_id": "bluecross-french-insurer/turn-1/alt-1",
+      "score": "language-consistency",
+      "label": "pass",
+      "judge": "pass",
+      "judge_reason": "The reply is entirely in French. Insurer/company names such as Croix Bleue, Desjardins, Sun Life, and Manulife are allowed and do not count against it.",
+      "notes": "This is case is a fail. The caller asked whether 'Blue Cross' was accepted. Therefore, there is no reason for the agent to list all providers."
+    },
+    {
+      "item_id": "bluecross-french-insurer/turn-1/alt-1",
+      "score": "grounded",
+      "label": "pass",
+      "judge": "pass",
+      "judge_reason": "The reply states that the clinic accepts Blue Cross, Desjardins, Sun Life, and Manulife. These are all supported by the insurer tool result, which lists Blue Cross, Desjardins Insurance, Sun Life, and Manulife. The appointment question does not add an unsupported fact.",
+      "notes": "This is case is a fail. The caller asked whether 'Blue Cross' was accepted. Therefore, there is no reason for the agent to list all providers."
+    },
+    {
+      "item_id": "bluecross-french-insurer/turn-1/alt-1",
+      "score": "task-success",
+      "label": "pass",
+      "judge": "pass",
+      "judge_reason": "The reply explicitly says yes, the clinic accepts Croix Bleue/Blue Cross, which satisfies the expected behaviour. Additional accepted insurers and an offer to book are not prohibited and align with the tool results.",
+      "notes": "This is case is a fail. The caller asked whether 'Blue Cross' was accepted. Therefore, there is no reason for the agent to list all providers."
+    },
+    {
+      "item_id": "bluecross-french-insurer/turn-1/alt-1",
+      "score": "phone-style",
+      "label": "fail",
+      "judge": "pass",
+      "judge_reason": "The reply has two short sentences and only one question. It contains no lists in the prohibited formatting sense, markdown, emojis, URLs, or IDs. It does not include any times or offer appointment times, so the time-related rules are not applicable.",
+      "notes": "This is case is a fail. The caller asked whether 'Blue Cross' was accepted. Therefore, there is no reason for the agent to list all providers."
+    },
+    {
+      "item_id": "bluecross-french-insurer/turn-2",
+      "score": "language-consistency",
+      "label": "pass",
+      "judge": "pass",
+      "judge_reason": "The reply is entirely in English. Place names and the address are allowed and do not count against it.",
+      "notes": "This case is a fail. The agent should not state the ZIP code with the address."
+    },
+    {
+      "item_id": "bluecross-french-insurer/turn-2",
+      "score": "grounded",
+      "label": "pass",
+      "judge": "pass",
+      "judge_reason": "The reply states that the Verdun clinic is at 4455 Wellington Street, Verdun, QC H4G 1W8, which is supported by the tool result giving the Verdun address as 4455 rue Wellington, Verdun, QC H4G 1W8. Translating “rue” to “Street” is acceptable. The appointment question does not add an unsupported factual claim.",
+      "notes": "This case is a fail. The agent should not state the ZIP code with the address."
+    },
+    {
+      "item_id": "bluecross-french-insurer/turn-2",
+      "score": "task-success",
+      "label": "pass",
+      "judge": "pass",
+      "judge_reason": "The reply is in English and provides the Verdun clinic address with the correct civic number and street, plus city/province/postal code. Although it translates 'rue Wellington' to 'Wellington Street', it still conveys the required address, 4455 rue/Wellington. The follow-up appointment offer is allowed.",
+      "notes": "This case is a fail. The agent should not state the ZIP code with the address."
+    },
+    {
+      "item_id": "bluecross-french-insurer/turn-2",
+      "score": "phone-style",
+      "label": "fail",
+      "judge": "pass",
+      "judge_reason": "The reply has two short sentences and only one question. It contains no lists, markdown, emojis, URLs, ids, or improperly formatted times, and it does not offer appointment times.",
+      "notes": "This case is a fail. The agent should not state the ZIP code with the address."
+    },
+    {
+      "item_id": "unclear-then-french/turn-1",
+      "score": "task-success",
+      "label": "pass",
+      "judge": "pass",
+      "judge_reason": "The reply provides the fixed bilingual line offering help in French and English, matching the expected behaviour. It does not add incorrect information or omit anything required.",
+      "notes": ""
+    },
+    {
+      "item_id": "unclear-then-french/turn-2",
+      "score": "language-consistency",
+      "label": "pass",
+      "judge": "pass",
+      "judge_reason": "La réponse est entièrement en français; le nom de lieu « Verdun » est permis.",
+      "notes": ""
+    },
+    {
+      "item_id": "unclear-then-french/turn-2",
+      "score": "grounded",
+      "label": "pass",
+      "judge": "pass",
+      "judge_reason": "The reply states Verdun hours as Monday to Friday 08:00-17:00 and closed Saturday/Sunday, which is directly supported by the tool result for Verdun hours. The question offering an appointment does not assert an unsupported fact.",
+      "notes": ""
+    },
+    {
+      "item_id": "unclear-then-french/turn-2",
+      "score": "task-success",
+      "label": "pass",
+      "judge": "pass",
+      "judge_reason": "The reply is in French and states that the Verdun location is open Monday to Friday from 8 a.m. to 5 p.m. It also adds that it is closed on weekends and asks a follow-up question, which does not conflict with the expected behaviour.",
+      "notes": ""
+    },
+    {
+      "item_id": "unclear-then-french/turn-2",
+      "score": "phone-style",
+      "label": "pass",
+      "judge": "pass",
+      "judge_reason": "The reply has three short sentences, contains only one question, uses no lists/markdown/emojis/URLs/ids, and says times in a natural spoken style. It does not offer specific appointment times, so the appointment-offer rule does not apply.",
+      "notes": ""
+    },
+    {
+      "item_id": "unclear-then-french/turn-2/alt-1",
+      "score": "language-consistency",
+      "label": "fail",
+      "judge": "fail",
+      "judge_reason": "La réponse contient l'expression anglaise « from 8 a.m. to 5 p.m. », qui a un équivalent en français (« de 8 h à 17 h »). Elle n'est donc pas entièrement en français.",
+      "notes": "This case is a fail. The agent was speaks both in French and English in a single reply. It should only speak in either French or English."
+    },
+    {
+      "item_id": "unclear-then-french/turn-2/alt-1",
+      "score": "grounded",
+      "label": "pass",
+      "judge": "pass",
+      "judge_reason": "The reply states Verdun is open Monday to Friday from 8 a.m. to 5 p.m., which is directly supported by the tool result showing Monday through Friday 08:00-17:00 and Saturday/Sunday closed. The question asking whether the caller needs an appointment does not assert an unsupported fact.",
+      "notes": "This case is a fail. The agent was speaks both in French and English in a single reply. It should only speak in either French or English."
+    },
+    {
+      "item_id": "unclear-then-french/turn-2/alt-1",
+      "score": "task-success",
+      "label": "pass",
+      "judge": "fail",
+      "judge_reason": "La réponse donne bien les bons jours et heures pour Verdun, mais l’attendu exige que ce soit dit en français. La portion « from 8 a.m. to 5 p.m. » est en anglais, donc la réponse ne respecte pas entièrement l’attendu.",
+      "notes": "This case is a fail. The agent was speaks both in French and English in a single reply. It should only speak in either French or English."
+    },
+    {
+      "item_id": "unclear-then-french/turn-2/alt-1",
+      "score": "phone-style",
+      "label": "pass",
+      "judge": "pass",
+      "judge_reason": "The reply has two short sentences, includes only one question, uses no lists/markdown/URLs/IDs, and states hours in a spoken format. It does not offer appointment times, so the two-or-three-times rule is not applicable.",
+      "notes": "This case is a fail. The agent was speaks both in French and English in a single reply. It should only speak in either French or English."
+    },
+    {
+      "item_id": "en-street-name-sounds-french/turn-1",
+      "score": "language-consistency",
+      "label": "pass",
+      "judge": "pass",
+      "judge_reason": "The reply is entirely in English. The place/street names “rue Wellington” and “Verdun” are allowed exceptions.",
+      "notes": "This case is a fail because there is no available information about the Verdun location being on Wellington. This response was halucinated."
+    },
+    {
+      "item_id": "en-street-name-sounds-french/turn-1",
+      "score": "grounded",
+      "label": "fail",
+      "judge": "fail",
+      "judge_reason": "The reply states that the clinic on rue Wellington is in Verdun. The tool result provides hours for the Verdun location, but the sources do not state that the rue Wellington clinic is the Verdun location or that it is on rue Wellington. Although Friday hours for Verdun are supported as 08:00-17:00 and this Friday is supported by the date context, the location-street mapping is unsupported.",
+      "notes": "This case is a fail because there is no available information about the Verdun location being on Wellington. This response was halucinated."
+    },
+    {
+      "item_id": "en-street-name-sounds-french/turn-1",
+      "score": "task-success",
+      "label": "pass",
+      "judge": "pass",
+      "judge_reason": "The reply identifies rue Wellington as the Verdun clinic and states it is open Friday from 8 a.m. to 5 p.m. The offer to schedule an appointment is an acceptable short follow-up.",
+      "notes": "This case is a fail because there is no available information about the Verdun location being on Wellington. This response was halucinated."
+    },
+    {
+      "item_id": "en-street-name-sounds-french/turn-1",
+      "score": "phone-style",
+      "label": "pass",
+      "judge": "pass",
+      "judge_reason": "The reply has two short sentences, contains only one question, uses spoken time format, and has no lists, markdown, emojis, URLs, or IDs. It does not offer specific appointment times, so the two-or-three-times rule is not triggered.",
+      "notes": "This case is a fail because there is no available information about the Verdun location being on Wellington. This response was halucinated."
+    },
+    {
+      "item_id": "explicit-switch-french-to-english/turn-1",
+      "score": "language-consistency",
+      "label": "pass",
+      "judge": "pass",
+      "judge_reason": "The reply is entirely in French. The address and place names are allowed, and the abbreviation 'QC' in the address is also part of the address. No English words or phrases with usual French equivalents appear outside the address.",
+      "notes": "The ZIP code should not be included the address reply."
+    },
+    {
+      "item_id": "explicit-switch-french-to-english/turn-1",
+      "score": "grounded",
+      "label": "pass",
+      "judge": "pass",
+      "judge_reason": "The reply states the Verdun clinic address as 4455 rue Wellington, Verdun, QC H4G 1W8, which is exactly supported by the tool result for the Verdun location's address. The follow-up question about opening hours does not assert any additional factual information. No unsupported or contradictory facts are present.",
+      "notes": "The ZIP code should not be included the address reply."
+    },
+    {
+      "item_id": "explicit-switch-french-to-english/turn-1",
+      "score": "task-success",
+      "label": "pass",
+      "judge": "pass",
+      "judge_reason": "The reply provides the Verdun clinic address exactly, including 4455 rue Wellington, and does so in French. The follow-up question is acceptable.",
+      "notes": "The ZIP code should not be included the address reply."
+    },
+    {
+      "item_id": "explicit-switch-french-to-english/turn-1",
+      "score": "phone-style",
+      "label": "fail",
+      "judge": "pass",
+      "judge_reason": "The reply has two short sentences, includes only one question, and contains no lists, markdown, emojis, URLs, appointment slot ids, or improperly formatted times. It does not offer appointment times, so the appointment-offer rule is not triggered.",
+      "notes": "The ZIP code should not be included the address reply."
+    },
+    {
+      "item_id": "explicit-switch-french-to-english/turn-2",
+      "score": "language-consistency",
+      "label": "pass",
+      "judge": "pass",
+      "judge_reason": "The reply is entirely in English. There are no French words or phrases.",
+      "notes": ""
+    },
+    {
+      "item_id": "explicit-switch-french-to-english/turn-2",
+      "score": "grounded",
+      "label": "pass",
+      "judge": "pass",
+      "judge_reason": "The reply does not state any factual information beyond offering to continue and asking how to help. It contains no unsupported clinic facts or contradictions.",
+      "notes": ""
+    },
+    {
+      "item_id": "explicit-switch-french-to-english/turn-2",
+      "score": "task-success",
+      "label": "pass",
+      "judge": "pass",
+      "judge_reason": "The reply agrees to continue in English and is entirely in English. It does not greet the caller again. The brief offer to help is acceptable.",
+      "notes": ""
+    },
+    {
+      "item_id": "explicit-switch-french-to-english/turn-2",
+      "score": "phone-style",
+      "label": "pass",
+      "judge": "pass",
+      "judge_reason": "The reply has two short sentences, contains only one question, and has no lists, markdown, emojis, URLs, ids, or improperly formatted times. It does not offer appointment times, so the appointment-offer rule is not applicable.",
+      "notes": ""
+    },
+    {
+      "item_id": "explicit-switch-french-to-english/turn-3",
+      "score": "language-consistency",
+      "label": "pass",
+      "judge": "pass",
+      "judge_reason": "The reply is entirely in English. The address/street wording “rue Galt” is allowed as an address/street name exception.",
+      "notes": ""
+    },
+    {
+      "item_id": "explicit-switch-french-to-english/turn-3",
+      "score": "grounded",
+      "label": "pass",
+      "judge": "pass",
+      "judge_reason": "The reply states that there is free parking for patients in the lot behind the building, with entrance on rue Galt. This is directly supported by the parking tool result for Verdun: \"Free parking for patients in the lot behind the building, entrance on rue Galt.\" The offer to schedule an appointment is a question/offer to help and does not require factual support.",
+      "notes": ""
+    },
+    {
+      "item_id": "explicit-switch-french-to-english/turn-3",
+      "score": "task-success",
+      "label": "pass",
+      "judge": "pass",
+      "judge_reason": "The reply is in English and states that there is free parking for patients in the lot behind the building, with the entrance on rue Galt. The added offer to schedule an appointment is a permissible short follow-up offer to help.",
+      "notes": ""
+    },
+    {
+      "item_id": "explicit-switch-french-to-english/turn-3",
+      "score": "phone-style",
+      "label": "pass",
+      "judge": "pass",
+      "judge_reason": "The reply has two short sentences, asks only one question, contains no lists, markdown, emojis, URLs, or IDs, and does not mention any times or offer appointment time options. It follows all the specified rules.",
+      "notes": ""
+    }
+  ]
+}

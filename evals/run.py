@@ -3,12 +3,13 @@
 Run with: uv run python -m evals.run
 The backend must be running on a seeded database, as for the chat:
 uv run python -m backend.seed, then uv run uvicorn backend.main:app
+Each run is saved to evals/results/, with every turn's verdicts.
 """
 
 import json
 import os
 import uuid
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 from typing import Any
 
@@ -19,15 +20,16 @@ from dotenv import load_dotenv
 from langfuse import get_client
 from langfuse.openai import OpenAI
 
-from agent.chat import Message, answer_and_trace
+from agent.chat import MODEL, Message, answer_and_trace
 from agent.config import load_clinic_config, location_names
 from agent.tools import make_backend_client, tool_definitions
 from backend.seed import DB_PATH
 from evals.availability import check_availability_case
 from evals.checks import CheckResult, check_language_detected, check_tool_use
-from evals.judges import judge_case, load_judge_prompts
+from evals.judges import JUDGE_MODEL, judge_case, load_judge_prompts
 
 CASES_PATH = Path(__file__).parent / "cases.yaml"
+RESULTS_DIR = Path(__file__).parent / "results"
 
 # Eval traces go to their own Langfuse environment, so they never mix with
 # real conversations in dashboards and filters.
@@ -113,6 +115,7 @@ def judge_scores(
     case: dict[str, Any],
     turn_results: list[dict[str, Any]],
     today: date,
+    now: datetime,
 ) -> dict[str, CheckResult]:
     """Run every score that needs the judge model on one case."""
     scores = judge_case(judge_client, prompts, case, turn_results, config["greeting"], today)
@@ -124,6 +127,7 @@ def judge_scores(
         location_names(config),
         today,
         DB_PATH,
+        now,
     )
     if availability is not None:
         scores["availability-correct"] = availability
@@ -158,6 +162,17 @@ def print_summary(all_scores: list[dict[str, CheckResult]]) -> None:
         print(f"  {score_name}: {passed}/{scored} cases passed")
 
 
+def save_run(run_record: dict[str, Any], results_dir: Path = RESULTS_DIR) -> Path:
+    """Write one run to a JSON file named after the run, and return its path."""
+    results_dir.mkdir(exist_ok=True)
+    path = results_dir / f"{run_record['run_id']}.json"
+    with path.open("w", encoding="utf-8") as results_file:
+        # indent makes the file readable and its git diffs line by line;
+        # ensure_ascii=False keeps the French accents as they are.
+        json.dump(run_record, results_file, ensure_ascii=False, indent=2)
+    return path
+
+
 def main() -> None:
     load_dotenv()
     # Set after load_dotenv, so it wins over the environment in .env, and
@@ -172,11 +187,22 @@ def main() -> None:
     prompts = load_judge_prompts()
     tools = tool_definitions(location_names(config))
     cases = load_cases()
+    started_at = datetime.now()
     # The date the judges and the availability check use. The agent reads
     # the date itself on every turn, so a run across midnight would judge
     # it against the wrong calendar.
-    today = date.today()
+    today = started_at.date()
 
+    # Everything needed to review or re-judge this run later: what the agent
+    # said and did on every turn, and every score with its per-turn verdicts.
+    run_record = {
+        "run_id": started_at.strftime("run-%Y%m%d-%H%M%S"),
+        "started_at": started_at.isoformat(timespec="seconds"),
+        "today": today.isoformat(),
+        "agent_model": MODEL,
+        "judge_model": JUDGE_MODEL,
+        "cases": [],
+    }
     all_scores = []
     try:
         with make_backend_client() as backend:
@@ -184,11 +210,17 @@ def main() -> None:
                 turn_results = run_case(client, backend, config, tools, case)
                 scores = score_case(case, turn_results)
                 scores.update(
-                    judge_scores(judge_client, prompts, config, case, turn_results, today)
+                    judge_scores(
+                        judge_client, prompts, config, case, turn_results, today, started_at
+                    )
                 )
                 print_case(case, turn_results, scores)
                 all_scores.append(scores)
+                run_record["cases"].append(
+                    {"id": case["id"], "turns": turn_results, "scores": scores}
+                )
         print_summary(all_scores)
+        print(f"\nSaved to {save_run(run_record)}")
     finally:
         # Send the last eval traces before the program exits.
         get_client().flush()

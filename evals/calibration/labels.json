@@ -1,0 +1,2046 @@
+{
+  "run_file": "evals/results/run-20261027-144223.json",
+  "how_to_label": "Replace every null under \"labels\" with \"pass\" or \"fail\", judging the reply only. Add anything worth knowing to \"notes\".",
+  "questions": {
+    "language-consistency": "Is the reply entirely in the required language? Names and addresses don't count.",
+    "grounded": "Is every fact in the reply supported by the conversation, the tool results or the dates?",
+    "task-success": "Does the reply do what the expected behaviour describes, with the right facts? Answering the question with a wrong answer is a fail.",
+    "phone-style": "1-3 short sentences, at most one question, no lists or ids, times said the way people speak, and 2-3 times when offering?",
+    "availability-correct": "Are the offered times real open slots that match the request? If none match, does the reply say so?"
+  },
+  "items": [
+    {
+      "item_id": "en-verdun-saturday-hours/turn-1",
+      "required_language": "english",
+      "conversation": [
+        "Agent: Bonjour, hi! Vous êtes à la Clinique dentaire Maple, Maple Dental. Comment puis-je vous aider? How can I help you?",
+        "Caller: Are you open on Saturdays at the Verdun clinic?"
+      ],
+      "tool_results_so_far": [
+        {
+          "name": "get_clinic_info",
+          "arguments": {
+            "location": "Verdun",
+            "topic": "hours"
+          },
+          "result": {
+            "ok": true,
+            "topic": "hours",
+            "location": "Verdun",
+            "details": {
+              "monday": "08:00-17:00",
+              "tuesday": "08:00-17:00",
+              "wednesday": "08:00-17:00",
+              "thursday": "08:00-17:00",
+              "friday": "08:00-17:00",
+              "saturday": "closed",
+              "sunday": "closed"
+            },
+            "open_elsewhere": {
+              "saturday": {
+                "Plateau": "09:00-13:00"
+              },
+              "sunday": {}
+            }
+          }
+        }
+      ],
+      "expected_behaviour": "Says Verdun is closed on Saturdays, and offers the Plateau location, which is open Saturdays from 9 a.m. to 1 p.m.",
+      "reply": "The Verdun clinic is closed on Saturdays. However, the Plateau location is open from nine to one. Would you like to schedule an appointment there?",
+      "labels": {
+        "language-consistency": "pass",
+        "grounded": "pass",
+        "task-success": "pass",
+        "phone-style": "pass"
+      },
+      "notes": ""
+    },
+    {
+      "item_id": "en-verdun-saturday-hours/turn-1/alt-1",
+      "required_language": "english",
+      "conversation": [
+        "Agent: Bonjour, hi! Vous êtes à la Clinique dentaire Maple, Maple Dental. Comment puis-je vous aider? How can I help you?",
+        "Caller: Are you open on Saturdays at the Verdun clinic?"
+      ],
+      "tool_results_so_far": [
+        {
+          "name": "get_clinic_info",
+          "arguments": {
+            "location": "Verdun",
+            "topic": "hours"
+          },
+          "result": {
+            "ok": true,
+            "topic": "hours",
+            "location": "Verdun",
+            "details": {
+              "monday": "08:00-17:00",
+              "tuesday": "08:00-17:00",
+              "wednesday": "08:00-17:00",
+              "thursday": "08:00-17:00",
+              "friday": "08:00-17:00",
+              "saturday": "closed",
+              "sunday": "closed"
+            },
+            "open_elsewhere": {
+              "saturday": {
+                "Plateau": "09:00-13:00"
+              },
+              "sunday": {}
+            }
+          }
+        }
+      ],
+      "expected_behaviour": "Says Verdun is closed on Saturdays, and offers the Plateau location, which is open Saturdays from 9 a.m. to 1 p.m.",
+      "reply": "Bien sûr! The Verdun clinic is closed on Saturdays, but our Plateau location is open from 9 a.m. to 1 p.m. Would you like to book there?",
+      "labels": {
+        "language-consistency": "fail",
+        "grounded": "pass",
+        "task-success": "pass",
+        "phone-style": "pass"
+      },
+      "notes": "This case fails because it combines French and English. Also, 'bien sur' is not synonymous with 'no'."
+    },
+    {
+      "item_id": "en-verdun-saturday-hours/turn-1/alt-2",
+      "required_language": "english",
+      "conversation": [
+        "Agent: Bonjour, hi! Vous êtes à la Clinique dentaire Maple, Maple Dental. Comment puis-je vous aider? How can I help you?",
+        "Caller: Are you open on Saturdays at the Verdun clinic?"
+      ],
+      "tool_results_so_far": [
+        {
+          "name": "get_clinic_info",
+          "arguments": {
+            "location": "Verdun",
+            "topic": "hours"
+          },
+          "result": {
+            "ok": true,
+            "topic": "hours",
+            "location": "Verdun",
+            "details": {
+              "monday": "08:00-17:00",
+              "tuesday": "08:00-17:00",
+              "wednesday": "08:00-17:00",
+              "thursday": "08:00-17:00",
+              "friday": "08:00-17:00",
+              "saturday": "closed",
+              "sunday": "closed"
+            },
+            "open_elsewhere": {
+              "saturday": {
+                "Plateau": "09:00-13:00"
+              },
+              "sunday": {}
+            }
+          }
+        }
+      ],
+      "expected_behaviour": "Says Verdun is closed on Saturdays, and offers the Plateau location, which is open Saturdays from 9 a.m. to 1 p.m.",
+      "reply": "The Verdun clinic is closed on Saturdays, but our Plateau location is open Saturdays from 9 a.m. to 3 p.m. Would you like to book there?",
+      "labels": {
+        "language-consistency": "pass",
+        "grounded": "fail",
+        "task-success": "fail",
+        "phone-style": "pass"
+      },
+      "notes": "This case fails because the Plateau hours are incorrect. It should be '9 a.m. to 1 p.m.', not '9 a.m. to 3 p.m.'."
+    },
+    {
+      "item_id": "fr-plateau-address-then-parking/turn-1",
+      "required_language": "french",
+      "conversation": [
+        "Agent: Bonjour, hi! Vous êtes à la Clinique dentaire Maple, Maple Dental. Comment puis-je vous aider? How can I help you?",
+        "Caller: Bonjour, quelle est l'adresse de la clinique du Plateau?"
+      ],
+      "tool_results_so_far": [
+        {
+          "name": "get_clinic_info",
+          "arguments": {
+            "location": "Plateau",
+            "topic": "address"
+          },
+          "result": {
+            "ok": true,
+            "topic": "address",
+            "location": "Plateau",
+            "details": "4120 rue Saint-Denis, Montréal, QC H2W 2M5"
+          }
+        }
+      ],
+      "expected_behaviour": "Gives the address, 4120 rue Saint-Denis.",
+      "reply": "L'adresse de la clinique du Plateau est 4120 rue Saint-Denis, Montréal, QC H2W 2M5. Avez-vous besoin d'autre chose?",
+      "labels": {
+        "language-consistency": "pass",
+        "grounded": "pass",
+        "task-success": "pass",
+        "phone-style": "fail"
+      },
+      "notes": "This fails because the ZIP code should not be included in the address response. It should be '4120 Rue Saint-Denis', not '4120 rue Saint-Denis, Montréal, QC H2W 2M5'."
+    },
+    {
+      "item_id": "fr-plateau-address-then-parking/turn-1/alt-1",
+      "required_language": "french",
+      "conversation": [
+        "Agent: Bonjour, hi! Vous êtes à la Clinique dentaire Maple, Maple Dental. Comment puis-je vous aider? How can I help you?",
+        "Caller: Bonjour, quelle est l'adresse de la clinique du Plateau?"
+      ],
+      "tool_results_so_far": [
+        {
+          "name": "get_clinic_info",
+          "arguments": {
+            "location": "Plateau",
+            "topic": "address"
+          },
+          "result": {
+            "ok": true,
+            "topic": "address",
+            "location": "Plateau",
+            "details": "4120 rue Saint-Denis, Montréal, QC H2W 2M5"
+          }
+        }
+      ],
+      "expected_behaviour": "Gives the address, 4120 rue Saint-Denis.",
+      "reply": "L'adresse de la clinique du Plateau est 4120 rue Saint-Denis. C'est à Montréal. Le code postal est H2W 2M5. Avez-vous besoin d'autre chose? Voulez-vous prendre rendez-vous?",
+      "labels": {
+        "language-consistency": "pass",
+        "grounded": "pass",
+        "task-success": "pass",
+        "phone-style": "fail"
+      },
+      "notes": "The answer is too long for an address request."
+    },
+    {
+      "item_id": "fr-plateau-address-then-parking/turn-2",
+      "required_language": "french",
+      "conversation": [
+        "Agent: Bonjour, hi! Vous êtes à la Clinique dentaire Maple, Maple Dental. Comment puis-je vous aider? How can I help you?",
+        "Caller: Bonjour, quelle est l'adresse de la clinique du Plateau?",
+        "Agent: L'adresse de la clinique du Plateau est 4120 rue Saint-Denis, Montréal, QC H2W 2M5. Avez-vous besoin d'autre chose?",
+        "Caller: Et pour le stationnement?"
+      ],
+      "tool_results_so_far": [
+        {
+          "name": "get_clinic_info",
+          "arguments": {
+            "location": "Plateau",
+            "topic": "address"
+          },
+          "result": {
+            "ok": true,
+            "topic": "address",
+            "location": "Plateau",
+            "details": "4120 rue Saint-Denis, Montréal, QC H2W 2M5"
+          }
+        },
+        {
+          "name": "get_clinic_info",
+          "arguments": {
+            "location": "Plateau",
+            "topic": "parking"
+          },
+          "result": {
+            "ok": true,
+            "topic": "parking",
+            "location": "Plateau",
+            "details": "Paid street parking on rue Saint-Denis. The Mont-Royal metro station is a five minute walk away."
+          }
+        }
+      ],
+      "expected_behaviour": "Says there is paid street parking on rue Saint-Denis and that the Mont-Royal metro is a five-minute walk away.",
+      "reply": "Le stationnement est payant dans la rue Saint-Denis. La station de métro Mont-Royal est à cinq minutes à pied. Souhaitez-vous prendre un rendez-vous?",
+      "labels": {
+        "language-consistency": "pass",
+        "grounded": "pass",
+        "task-success": "pass",
+        "phone-style": "pass"
+      },
+      "notes": ""
+    },
+    {
+      "item_id": "en-insurers-accepted-and-not/turn-1",
+      "required_language": "english",
+      "conversation": [
+        "Agent: Bonjour, hi! Vous êtes à la Clinique dentaire Maple, Maple Dental. Comment puis-je vous aider? How can I help you?",
+        "Caller: Hi, do you accept Desjardins insurance?"
+      ],
+      "tool_results_so_far": [
+        {
+          "name": "get_clinic_info",
+          "arguments": {
+            "location": null,
+            "topic": "insurers"
+          },
+          "result": {
+            "ok": true,
+            "topic": "insurers",
+            "location": null,
+            "details": [
+              "Sun Life",
+              "Manulife",
+              "Canada Life",
+              "Desjardins Insurance",
+              "Green Shield Canada",
+              "Blue Cross"
+            ]
+          }
+        }
+      ],
+      "expected_behaviour": "Says yes, Desjardins Insurance is accepted.",
+      "reply": "Yes, we accept Desjardins insurance. Would you like to schedule an appointment?",
+      "labels": {
+        "language-consistency": "pass",
+        "grounded": "pass",
+        "task-success": "pass",
+        "phone-style": "pass"
+      },
+      "notes": ""
+    },
+    {
+      "item_id": "en-insurers-accepted-and-not/turn-2",
+      "required_language": "english",
+      "conversation": [
+        "Agent: Bonjour, hi! Vous êtes à la Clinique dentaire Maple, Maple Dental. Comment puis-je vous aider? How can I help you?",
+        "Caller: Hi, do you accept Desjardins insurance?",
+        "Agent: Yes, we accept Desjardins insurance. Would you like to schedule an appointment?",
+        "Caller: And Industrial Alliance?"
+      ],
+      "tool_results_so_far": [
+        {
+          "name": "get_clinic_info",
+          "arguments": {
+            "location": null,
+            "topic": "insurers"
+          },
+          "result": {
+            "ok": true,
+            "topic": "insurers",
+            "location": null,
+            "details": [
+              "Sun Life",
+              "Manulife",
+              "Canada Life",
+              "Desjardins Insurance",
+              "Green Shield Canada",
+              "Blue Cross"
+            ]
+          }
+        },
+        {
+          "name": "get_clinic_info",
+          "arguments": {
+            "location": null,
+            "topic": "insurers"
+          },
+          "result": {
+            "ok": true,
+            "topic": "insurers",
+            "location": null,
+            "details": [
+              "Sun Life",
+              "Manulife",
+              "Canada Life",
+              "Desjardins Insurance",
+              "Green Shield Canada",
+              "Blue Cross"
+            ]
+          }
+        }
+      ],
+      "expected_behaviour": "Says Industrial Alliance is not on the list of accepted insurers, without claiming anything else about it. It may name the insurers that are accepted.",
+      "reply": "I'm sorry, but we do not accept Industrial Alliance insurance. Would you like to know about available appointment times?",
+      "labels": {
+        "language-consistency": "pass",
+        "grounded": "pass",
+        "task-success": "pass",
+        "phone-style": "pass"
+      },
+      "notes": ""
+    },
+    {
+      "item_id": "fr-saint-laurent-parking/turn-1",
+      "required_language": "french",
+      "conversation": [
+        "Agent: Bonjour, hi! Vous êtes à la Clinique dentaire Maple, Maple Dental. Comment puis-je vous aider? How can I help you?",
+        "Caller: Est-ce qu'il y a du stationnement à la clinique de Saint-Laurent?"
+      ],
+      "tool_results_so_far": [
+        {
+          "name": "get_clinic_info",
+          "arguments": {
+            "location": "Saint-Laurent",
+            "topic": "parking"
+          },
+          "result": {
+            "ok": true,
+            "topic": "parking",
+            "location": "Saint-Laurent",
+            "details": "Free underground parking in the building, level P1."
+          }
+        }
+      ],
+      "expected_behaviour": "Says there is free underground parking in the building, on level P1.",
+      "reply": "Oui, il y a un stationnement souterrain gratuit dans l'immeuble, au niveau P1. Avez-vous besoin d'un rendez-vous à cette clinique?",
+      "labels": {
+        "language-consistency": "pass",
+        "grounded": "pass",
+        "task-success": "pass",
+        "phone-style": "pass"
+      },
+      "notes": ""
+    },
+    {
+      "item_id": "fr-saint-laurent-parking/turn-1/alt-1",
+      "required_language": "french",
+      "conversation": [
+        "Agent: Bonjour, hi! Vous êtes à la Clinique dentaire Maple, Maple Dental. Comment puis-je vous aider? How can I help you?",
+        "Caller: Est-ce qu'il y a du stationnement à la clinique de Saint-Laurent?"
+      ],
+      "tool_results_so_far": [
+        {
+          "name": "get_clinic_info",
+          "arguments": {
+            "location": "Saint-Laurent",
+            "topic": "parking"
+          },
+          "result": {
+            "ok": true,
+            "topic": "parking",
+            "location": "Saint-Laurent",
+            "details": "Free underground parking in the building, level P1."
+          }
+        }
+      ],
+      "expected_behaviour": "Says there is free underground parking in the building, on level P1.",
+      "reply": "Oui, il y a un stationnement souterrain dans l'immeuble, au niveau P1, au coût de 5 $ de l'heure. Avez-vous besoin d'un rendez-vous?",
+      "labels": {
+        "language-consistency": "pass",
+        "grounded": "fail",
+        "task-success": "fail",
+        "phone-style": "fail"
+      },
+      "notes": "This case fails because the information is incorrect. Parking for the Saint-Laurent location is free, not 5 $. Also, it should not use a '$' special case."
+    },
+    {
+      "item_id": "en-plateau-cleaning-next-week/turn-1",
+      "required_language": "english",
+      "conversation": [
+        "Agent: Bonjour, hi! Vous êtes à la Clinique dentaire Maple, Maple Dental. Comment puis-je vous aider? How can I help you?",
+        "Caller: I'd like to book a cleaning at the Plateau clinic next week."
+      ],
+      "tool_results_so_far": [
+        {
+          "name": "check_availability",
+          "arguments": {
+            "location": "Plateau",
+            "appointment_type": "cleaning",
+            "first_day": "2026-11-02",
+            "last_day": "2026-11-08"
+          },
+          "result": {
+            "ok": true,
+            "location": "Plateau",
+            "appointment_type": "cleaning",
+            "open_slot_count": 98,
+            "slots": [
+              {
+                "slot_id": 1075,
+                "start_time": "2026-11-02T08:00",
+                "provider": "Chloé Roy"
+              },
+              {
+                "slot_id": 1084,
+                "start_time": "2026-11-02T08:00",
+                "provider": "Maya Singh"
+              },
+              {
+                "slot_id": 1076,
+                "start_time": "2026-11-02T09:00",
+                "provider": "Chloé Roy"
+              },
+              {
+                "slot_id": 1085,
+                "start_time": "2026-11-02T09:00",
+                "provider": "Maya Singh"
+              },
+              {
+                "slot_id": 1077,
+                "start_time": "2026-11-02T10:00",
+                "provider": "Chloé Roy"
+              },
+              {
+                "slot_id": 1086,
+                "start_time": "2026-11-02T10:00",
+                "provider": "Maya Singh"
+              },
+              {
+                "slot_id": 1078,
+                "start_time": "2026-11-02T11:00",
+                "provider": "Chloé Roy"
+              },
+              {
+                "slot_id": 1087,
+                "start_time": "2026-11-02T11:00",
+                "provider": "Maya Singh"
+              },
+              {
+                "slot_id": 1079,
+                "start_time": "2026-11-02T12:00",
+                "provider": "Chloé Roy"
+              },
+              {
+                "slot_id": 1088,
+                "start_time": "2026-11-02T12:00",
+                "provider": "Maya Singh"
+              },
+              {
+                "slot_id": 1080,
+                "start_time": "2026-11-02T13:00",
+                "provider": "Chloé Roy"
+              },
+              {
+                "slot_id": 1089,
+                "start_time": "2026-11-02T13:00",
+                "provider": "Maya Singh"
+              },
+              {
+                "slot_id": 1081,
+                "start_time": "2026-11-02T14:00",
+                "provider": "Chloé Roy"
+              },
+              {
+                "slot_id": 1090,
+                "start_time": "2026-11-02T14:00",
+                "provider": "Maya Singh"
+              },
+              {
+                "slot_id": 1082,
+                "start_time": "2026-11-02T15:00",
+                "provider": "Chloé Roy"
+              },
+              {
+                "slot_id": 1091,
+                "start_time": "2026-11-02T15:00",
+                "provider": "Maya Singh"
+              },
+              {
+                "slot_id": 1083,
+                "start_time": "2026-11-02T16:00",
+                "provider": "Chloé Roy"
+              },
+              {
+                "slot_id": 1092,
+                "start_time": "2026-11-02T16:00",
+                "provider": "Maya Singh"
+              },
+              {
+                "slot_id": 1228,
+                "start_time": "2026-11-03T08:00",
+                "provider": "Chloé Roy"
+              },
+              {
+                "slot_id": 1237,
+                "start_time": "2026-11-03T08:00",
+                "provider": "Maya Singh"
+              }
+            ],
+            "note": "Only the earliest 20 are listed. Search a narrower date range to see later times."
+          }
+        }
+      ],
+      "expected_behaviour": "Offers two or three open cleaning times next week, said the way people speak (for example \"Monday at 9 a.m.\"), and asks which one works.",
+      "reply": "I have several openings for a cleaning at the Plateau clinic next week. Would you like to book on Monday, November 2nd at 8 a.m., or perhaps at 9 a.m.?",
+      "availability": {
+        "request": {
+          "location": "Plateau",
+          "appointment_type": "cleaning",
+          "first_day": "2026-11-02",
+          "last_day": "2026-11-08"
+        },
+        "open_matching_count": 49,
+        "open_matching_slots": [
+          "2026-11-02T08:00",
+          "2026-11-02T09:00",
+          "2026-11-02T10:00",
+          "2026-11-02T11:00",
+          "2026-11-02T12:00",
+          "2026-11-02T13:00",
+          "2026-11-02T14:00",
+          "2026-11-02T15:00",
+          "2026-11-02T16:00",
+          "2026-11-03T08:00",
+          "2026-11-03T09:00",
+          "2026-11-03T10:00"
+        ]
+      },
+      "labels": {
+        "language-consistency": "pass",
+        "grounded": "pass",
+        "task-success": "pass",
+        "phone-style": "pass",
+        "availability-correct": "pass"
+      },
+      "notes": ""
+    },
+    {
+      "item_id": "en-plateau-cleaning-next-week/turn-1/alt-1",
+      "required_language": "english",
+      "conversation": [
+        "Agent: Bonjour, hi! Vous êtes à la Clinique dentaire Maple, Maple Dental. Comment puis-je vous aider? How can I help you?",
+        "Caller: I'd like to book a cleaning at the Plateau clinic next week."
+      ],
+      "tool_results_so_far": [
+        {
+          "name": "check_availability",
+          "arguments": {
+            "location": "Plateau",
+            "appointment_type": "cleaning",
+            "first_day": "2026-11-02",
+            "last_day": "2026-11-08"
+          },
+          "result": {
+            "ok": true,
+            "location": "Plateau",
+            "appointment_type": "cleaning",
+            "open_slot_count": 98,
+            "slots": [
+              {
+                "slot_id": 1075,
+                "start_time": "2026-11-02T08:00",
+                "provider": "Chloé Roy"
+              },
+              {
+                "slot_id": 1084,
+                "start_time": "2026-11-02T08:00",
+                "provider": "Maya Singh"
+              },
+              {
+                "slot_id": 1076,
+                "start_time": "2026-11-02T09:00",
+                "provider": "Chloé Roy"
+              },
+              {
+                "slot_id": 1085,
+                "start_time": "2026-11-02T09:00",
+                "provider": "Maya Singh"
+              },
+              {
+                "slot_id": 1077,
+                "start_time": "2026-11-02T10:00",
+                "provider": "Chloé Roy"
+              },
+              {
+                "slot_id": 1086,
+                "start_time": "2026-11-02T10:00",
+                "provider": "Maya Singh"
+              },
+              {
+                "slot_id": 1078,
+                "start_time": "2026-11-02T11:00",
+                "provider": "Chloé Roy"
+              },
+              {
+                "slot_id": 1087,
+                "start_time": "2026-11-02T11:00",
+                "provider": "Maya Singh"
+              },
+              {
+                "slot_id": 1079,
+                "start_time": "2026-11-02T12:00",
+                "provider": "Chloé Roy"
+              },
+              {
+                "slot_id": 1088,
+                "start_time": "2026-11-02T12:00",
+                "provider": "Maya Singh"
+              },
+              {
+                "slot_id": 1080,
+                "start_time": "2026-11-02T13:00",
+                "provider": "Chloé Roy"
+              },
+              {
+                "slot_id": 1089,
+                "start_time": "2026-11-02T13:00",
+                "provider": "Maya Singh"
+              },
+              {
+                "slot_id": 1081,
+                "start_time": "2026-11-02T14:00",
+                "provider": "Chloé Roy"
+              },
+              {
+                "slot_id": 1090,
+                "start_time": "2026-11-02T14:00",
+                "provider": "Maya Singh"
+              },
+              {
+                "slot_id": 1082,
+                "start_time": "2026-11-02T15:00",
+                "provider": "Chloé Roy"
+              },
+              {
+                "slot_id": 1091,
+                "start_time": "2026-11-02T15:00",
+                "provider": "Maya Singh"
+              },
+              {
+                "slot_id": 1083,
+                "start_time": "2026-11-02T16:00",
+                "provider": "Chloé Roy"
+              },
+              {
+                "slot_id": 1092,
+                "start_time": "2026-11-02T16:00",
+                "provider": "Maya Singh"
+              },
+              {
+                "slot_id": 1228,
+                "start_time": "2026-11-03T08:00",
+                "provider": "Chloé Roy"
+              },
+              {
+                "slot_id": 1237,
+                "start_time": "2026-11-03T08:00",
+                "provider": "Maya Singh"
+              }
+            ],
+            "note": "Only the earliest 20 are listed. Search a narrower date range to see later times."
+          }
+        }
+      ],
+      "expected_behaviour": "Offers two or three open cleaning times next week, said the way people speak (for example \"Monday at 9 a.m.\"), and asks which one works.",
+      "reply": "Here are the openings next week:\n- 2026-11-02T08:00 (slot 1075)\n- 2026-11-02T08:00 (slot 1084)\n- 2026-11-02T09:00\n- 2026-11-02T10:00\nWhich one works for you?",
+      "availability": {
+        "request": {
+          "location": "Plateau",
+          "appointment_type": "cleaning",
+          "first_day": "2026-11-02",
+          "last_day": "2026-11-08"
+        },
+        "open_matching_count": 49,
+        "open_matching_slots": [
+          "2026-11-02T08:00",
+          "2026-11-02T09:00",
+          "2026-11-02T10:00",
+          "2026-11-02T11:00",
+          "2026-11-02T12:00",
+          "2026-11-02T13:00",
+          "2026-11-02T14:00",
+          "2026-11-02T15:00",
+          "2026-11-02T16:00",
+          "2026-11-03T08:00",
+          "2026-11-03T09:00",
+          "2026-11-03T10:00"
+        ]
+      },
+      "labels": {
+        "language-consistency": "pass",
+        "grounded": "pass",
+        "task-success": "fail",
+        "phone-style": "fail",
+        "availability-correct": "pass"
+      },
+      "notes": "This case fails because it should never repeat availabilities times in such a format: YYYY-MM-DD. It should also never respond with the slot number."
+    },
+    {
+      "item_id": "fr-verdun-checkup-thursday-afternoon/turn-1",
+      "required_language": "french",
+      "conversation": [
+        "Agent: Bonjour, hi! Vous êtes à la Clinique dentaire Maple, Maple Dental. Comment puis-je vous aider? How can I help you?",
+        "Caller: J'aimerais un examen à Verdun le jeudi de la semaine prochaine, en après-midi."
+      ],
+      "tool_results_so_far": [
+        {
+          "name": "check_availability",
+          "arguments": {
+            "location": "Verdun",
+            "appointment_type": "checkup",
+            "first_day": "2026-11-02",
+            "last_day": "2026-11-08"
+          },
+          "result": {
+            "ok": true,
+            "location": "Verdun",
+            "appointment_type": "checkup",
+            "open_slot_count": 178,
+            "slots": [
+              {
+                "slot_id": 1003,
+                "start_time": "2026-11-02T08:00",
+                "provider": "Amira Haddad"
+              },
+              {
+                "slot_id": 1021,
+                "start_time": "2026-11-02T08:00",
+                "provider": "Daniel Cohen"
+              },
+              {
+                "slot_id": 1004,
+                "start_time": "2026-11-02T08:30",
+                "provider": "Amira Haddad"
+              },
+              {
+                "slot_id": 1022,
+                "start_time": "2026-11-02T08:30",
+                "provider": "Daniel Cohen"
+              },
+              {
+                "slot_id": 1005,
+                "start_time": "2026-11-02T09:00",
+                "provider": "Amira Haddad"
+              },
+              {
+                "slot_id": 1023,
+                "start_time": "2026-11-02T09:00",
+                "provider": "Daniel Cohen"
+              },
+              {
+                "slot_id": 1006,
+                "start_time": "2026-11-02T09:30",
+                "provider": "Amira Haddad"
+              },
+              {
+                "slot_id": 1024,
+                "start_time": "2026-11-02T09:30",
+                "provider": "Daniel Cohen"
+              },
+              {
+                "slot_id": 1007,
+                "start_time": "2026-11-02T10:00",
+                "provider": "Amira Haddad"
+              },
+              {
+                "slot_id": 1025,
+                "start_time": "2026-11-02T10:00",
+                "provider": "Daniel Cohen"
+              },
+              {
+                "slot_id": 1008,
+                "start_time": "2026-11-02T10:30",
+                "provider": "Amira Haddad"
+              },
+              {
+                "slot_id": 1026,
+                "start_time": "2026-11-02T10:30",
+                "provider": "Daniel Cohen"
+              },
+              {
+                "slot_id": 1009,
+                "start_time": "2026-11-02T11:00",
+                "provider": "Amira Haddad"
+              },
+              {
+                "slot_id": 1027,
+                "start_time": "2026-11-02T11:00",
+                "provider": "Daniel Cohen"
+              },
+              {
+                "slot_id": 1010,
+                "start_time": "2026-11-02T11:30",
+                "provider": "Amira Haddad"
+              },
+              {
+                "slot_id": 1028,
+                "start_time": "2026-11-02T11:30",
+                "provider": "Daniel Cohen"
+              },
+              {
+                "slot_id": 1011,
+                "start_time": "2026-11-02T12:00",
+                "provider": "Amira Haddad"
+              },
+              {
+                "slot_id": 1029,
+                "start_time": "2026-11-02T12:00",
+                "provider": "Daniel Cohen"
+              },
+              {
+                "slot_id": 1012,
+                "start_time": "2026-11-02T12:30",
+                "provider": "Amira Haddad"
+              },
+              {
+                "slot_id": 1030,
+                "start_time": "2026-11-02T12:30",
+                "provider": "Daniel Cohen"
+              }
+            ],
+            "note": "Only the earliest 20 are listed. Search a narrower date range to see later times."
+          }
+        }
+      ],
+      "expected_behaviour": "Offers two or three open checkup times on that Thursday afternoon, or, if it has none it can confirm, says so and offers the closest times it does have. Never offers a time it didn't get from the availability results.",
+      "reply": "Le jeudi de la semaine prochaine, notre clinique à Verdun est fermée. Cependant, nous avons des disponibilités à Saint-Laurent. Souhaitez-vous un rendez-vous à Saint-Laurent?",
+      "availability": {
+        "request": {
+          "location": "Verdun",
+          "appointment_type": "checkup",
+          "first_day": "2026-11-05",
+          "last_day": "2026-11-05",
+          "earliest_start": "12:00"
+        },
+        "open_matching_count": 10,
+        "open_matching_slots": [
+          "2026-11-05T12:00",
+          "2026-11-05T12:30",
+          "2026-11-05T13:00",
+          "2026-11-05T13:30",
+          "2026-11-05T14:00",
+          "2026-11-05T14:30",
+          "2026-11-05T15:00",
+          "2026-11-05T15:30",
+          "2026-11-05T16:00",
+          "2026-11-05T16:30"
+        ]
+      },
+      "labels": {
+        "language-consistency": "pass",
+        "grounded": "fail",
+        "task-success": "fail",
+        "phone-style": "pass",
+        "availability-correct": "fail"
+      },
+      "notes": "This is a big fail. The Verdun location is open every Thursday and is therefore open next week as it pertains to this call. Anytime a location is mentioned by the caller, the 'get_clinic_info' tool should be called to avoid halucinations."
+    },
+    {
+      "item_id": "en-saint-laurent-cleaning-at-1030/turn-1",
+      "required_language": "english",
+      "conversation": [
+        "Agent: Bonjour, hi! Vous êtes à la Clinique dentaire Maple, Maple Dental. Comment puis-je vous aider? How can I help you?",
+        "Caller: Can I get a cleaning at Saint-Laurent next Wednesday at 10:30?"
+      ],
+      "tool_results_so_far": [
+        {
+          "name": "check_availability",
+          "arguments": {
+            "location": "Saint-Laurent",
+            "appointment_type": "cleaning",
+            "first_day": "2026-11-04",
+            "last_day": "2026-11-04"
+          },
+          "result": {
+            "ok": true,
+            "location": "Saint-Laurent",
+            "appointment_type": "cleaning",
+            "open_slot_count": 9,
+            "slots": [
+              {
+                "slot_id": 1417,
+                "start_time": "2026-11-04T08:00",
+                "provider": "Nadia Benali"
+              },
+              {
+                "slot_id": 1418,
+                "start_time": "2026-11-04T09:00",
+                "provider": "Nadia Benali"
+              },
+              {
+                "slot_id": 1419,
+                "start_time": "2026-11-04T10:00",
+                "provider": "Nadia Benali"
+              },
+              {
+                "slot_id": 1420,
+                "start_time": "2026-11-04T11:00",
+                "provider": "Nadia Benali"
+              },
+              {
+                "slot_id": 1421,
+                "start_time": "2026-11-04T12:00",
+                "provider": "Nadia Benali"
+              },
+              {
+                "slot_id": 1422,
+                "start_time": "2026-11-04T13:00",
+                "provider": "Nadia Benali"
+              },
+              {
+                "slot_id": 1423,
+                "start_time": "2026-11-04T14:00",
+                "provider": "Nadia Benali"
+              },
+              {
+                "slot_id": 1424,
+                "start_time": "2026-11-04T15:00",
+                "provider": "Nadia Benali"
+              },
+              {
+                "slot_id": 1425,
+                "start_time": "2026-11-04T16:00",
+                "provider": "Nadia Benali"
+              }
+            ]
+          }
+        }
+      ],
+      "expected_behaviour": "Says 10:30 isn't available, and offers the closest open cleaning times, such as earlier or later that same Wednesday.",
+      "reply": "Saint-Laurent is available for cleanings next Wednesday, but not at 10:30. Would you like to book at 10 a.m. instead?",
+      "availability": {
+        "request": {
+          "location": "Saint-Laurent",
+          "appointment_type": "cleaning",
+          "first_day": "2026-11-04",
+          "last_day": "2026-11-04",
+          "earliest_start": "10:30",
+          "latest_start": "10:30"
+        },
+        "open_matching_count": 0,
+        "open_matching_slots": []
+      },
+      "labels": {
+        "language-consistency": "pass",
+        "grounded": "pass",
+        "task-success": "pass",
+        "phone-style": "pass",
+        "availability-correct": "pass"
+      },
+      "notes": ""
+    },
+    {
+      "item_id": "en-saint-laurent-cleaning-at-1030/turn-1/alt-1",
+      "required_language": "english",
+      "conversation": [
+        "Agent: Bonjour, hi! Vous êtes à la Clinique dentaire Maple, Maple Dental. Comment puis-je vous aider? How can I help you?",
+        "Caller: Can I get a cleaning at Saint-Laurent next Wednesday at 10:30?"
+      ],
+      "tool_results_so_far": [
+        {
+          "name": "check_availability",
+          "arguments": {
+            "location": "Saint-Laurent",
+            "appointment_type": "cleaning",
+            "first_day": "2026-11-04",
+            "last_day": "2026-11-04"
+          },
+          "result": {
+            "ok": true,
+            "location": "Saint-Laurent",
+            "appointment_type": "cleaning",
+            "open_slot_count": 9,
+            "slots": [
+              {
+                "slot_id": 1417,
+                "start_time": "2026-11-04T08:00",
+                "provider": "Nadia Benali"
+              },
+              {
+                "slot_id": 1418,
+                "start_time": "2026-11-04T09:00",
+                "provider": "Nadia Benali"
+              },
+              {
+                "slot_id": 1419,
+                "start_time": "2026-11-04T10:00",
+                "provider": "Nadia Benali"
+              },
+              {
+                "slot_id": 1420,
+                "start_time": "2026-11-04T11:00",
+                "provider": "Nadia Benali"
+              },
+              {
+                "slot_id": 1421,
+                "start_time": "2026-11-04T12:00",
+                "provider": "Nadia Benali"
+              },
+              {
+                "slot_id": 1422,
+                "start_time": "2026-11-04T13:00",
+                "provider": "Nadia Benali"
+              },
+              {
+                "slot_id": 1423,
+                "start_time": "2026-11-04T14:00",
+                "provider": "Nadia Benali"
+              },
+              {
+                "slot_id": 1424,
+                "start_time": "2026-11-04T15:00",
+                "provider": "Nadia Benali"
+              },
+              {
+                "slot_id": 1425,
+                "start_time": "2026-11-04T16:00",
+                "provider": "Nadia Benali"
+              }
+            ]
+          }
+        }
+      ],
+      "expected_behaviour": "Says 10:30 isn't available, and offers the closest open cleaning times, such as earlier or later that same Wednesday.",
+      "reply": "10:30 isn't open next Wednesday, but I can offer 10:15 or 11:45 that day. Would either of those work?",
+      "availability": {
+        "request": {
+          "location": "Saint-Laurent",
+          "appointment_type": "cleaning",
+          "first_day": "2026-11-04",
+          "last_day": "2026-11-04",
+          "earliest_start": "10:30",
+          "latest_start": "10:30"
+        },
+        "open_matching_count": 0,
+        "open_matching_slots": []
+      },
+      "labels": {
+        "language-consistency": "pass",
+        "grounded": "fail",
+        "task-success": "fail",
+        "phone-style": "pass",
+        "availability-correct": "fail"
+      },
+      "notes": "This is a fail because there are no slots available at 15 min increments. The availability is correct from the tool, but the slot proposed is absolutely not part of that availability."
+    },
+    {
+      "item_id": "en-saint-laurent-cleaning-at-1030/turn-1/alt-2",
+      "required_language": "english",
+      "conversation": [
+        "Agent: Bonjour, hi! Vous êtes à la Clinique dentaire Maple, Maple Dental. Comment puis-je vous aider? How can I help you?",
+        "Caller: Can I get a cleaning at Saint-Laurent next Wednesday at 10:30?"
+      ],
+      "tool_results_so_far": [
+        {
+          "name": "check_availability",
+          "arguments": {
+            "location": "Saint-Laurent",
+            "appointment_type": "cleaning",
+            "first_day": "2026-11-04",
+            "last_day": "2026-11-04"
+          },
+          "result": {
+            "ok": true,
+            "location": "Saint-Laurent",
+            "appointment_type": "cleaning",
+            "open_slot_count": 9,
+            "slots": [
+              {
+                "slot_id": 1417,
+                "start_time": "2026-11-04T08:00",
+                "provider": "Nadia Benali"
+              },
+              {
+                "slot_id": 1418,
+                "start_time": "2026-11-04T09:00",
+                "provider": "Nadia Benali"
+              },
+              {
+                "slot_id": 1419,
+                "start_time": "2026-11-04T10:00",
+                "provider": "Nadia Benali"
+              },
+              {
+                "slot_id": 1420,
+                "start_time": "2026-11-04T11:00",
+                "provider": "Nadia Benali"
+              },
+              {
+                "slot_id": 1421,
+                "start_time": "2026-11-04T12:00",
+                "provider": "Nadia Benali"
+              },
+              {
+                "slot_id": 1422,
+                "start_time": "2026-11-04T13:00",
+                "provider": "Nadia Benali"
+              },
+              {
+                "slot_id": 1423,
+                "start_time": "2026-11-04T14:00",
+                "provider": "Nadia Benali"
+              },
+              {
+                "slot_id": 1424,
+                "start_time": "2026-11-04T15:00",
+                "provider": "Nadia Benali"
+              },
+              {
+                "slot_id": 1425,
+                "start_time": "2026-11-04T16:00",
+                "provider": "Nadia Benali"
+              }
+            ]
+          }
+        }
+      ],
+      "expected_behaviour": "Says 10:30 isn't available, and offers the closest open cleaning times, such as earlier or later that same Wednesday.",
+      "reply": "10:30 isn't available next Wednesday, but I have 10 a.m. or 11 a.m. that day. Would either of those work for you?",
+      "availability": {
+        "request": {
+          "location": "Saint-Laurent",
+          "appointment_type": "cleaning",
+          "first_day": "2026-11-04",
+          "last_day": "2026-11-04",
+          "earliest_start": "10:30",
+          "latest_start": "10:30"
+        },
+        "open_matching_count": 0,
+        "open_matching_slots": []
+      },
+      "labels": {
+        "language-consistency": "pass",
+        "grounded": "pass",
+        "task-success": "pass",
+        "phone-style": "pass",
+        "availability-correct": "pass"
+      },
+      "notes": "This case passes, but is slightly informal with how it replies. It should start with 'Sorry...' or 'No, there is no availability at...' instead of '10:30 isn't available'."
+    },
+    {
+      "item_id": "en-verdun-cleaning-saturday/turn-1",
+      "required_language": "english",
+      "conversation": [
+        "Agent: Bonjour, hi! Vous êtes à la Clinique dentaire Maple, Maple Dental. Comment puis-je vous aider? How can I help you?",
+        "Caller: Could I come in for a cleaning at Verdun on the Saturday of next week?"
+      ],
+      "tool_results_so_far": [
+        {
+          "name": "check_availability",
+          "arguments": {
+            "location": "Verdun",
+            "appointment_type": "cleaning",
+            "first_day": "2026-11-02",
+            "last_day": "2026-11-02"
+          },
+          "result": {
+            "ok": true,
+            "location": "Verdun",
+            "appointment_type": "cleaning",
+            "open_slot_count": 18,
+            "slots": [
+              {
+                "slot_id": 1093,
+                "start_time": "2026-11-02T08:00",
+                "provider": "Isabelle Côté"
+              },
+              {
+                "slot_id": 1102,
+                "start_time": "2026-11-02T08:00",
+                "provider": "Kevin Martin"
+              },
+              {
+                "slot_id": 1094,
+                "start_time": "2026-11-02T09:00",
+                "provider": "Isabelle Côté"
+              },
+              {
+                "slot_id": 1103,
+                "start_time": "2026-11-02T09:00",
+                "provider": "Kevin Martin"
+              },
+              {
+                "slot_id": 1095,
+                "start_time": "2026-11-02T10:00",
+                "provider": "Isabelle Côté"
+              },
+              {
+                "slot_id": 1104,
+                "start_time": "2026-11-02T10:00",
+                "provider": "Kevin Martin"
+              },
+              {
+                "slot_id": 1096,
+                "start_time": "2026-11-02T11:00",
+                "provider": "Isabelle Côté"
+              },
+              {
+                "slot_id": 1105,
+                "start_time": "2026-11-02T11:00",
+                "provider": "Kevin Martin"
+              },
+              {
+                "slot_id": 1097,
+                "start_time": "2026-11-02T12:00",
+                "provider": "Isabelle Côté"
+              },
+              {
+                "slot_id": 1106,
+                "start_time": "2026-11-02T12:00",
+                "provider": "Kevin Martin"
+              },
+              {
+                "slot_id": 1098,
+                "start_time": "2026-11-02T13:00",
+                "provider": "Isabelle Côté"
+              },
+              {
+                "slot_id": 1107,
+                "start_time": "2026-11-02T13:00",
+                "provider": "Kevin Martin"
+              },
+              {
+                "slot_id": 1099,
+                "start_time": "2026-11-02T14:00",
+                "provider": "Isabelle Côté"
+              },
+              {
+                "slot_id": 1108,
+                "start_time": "2026-11-02T14:00",
+                "provider": "Kevin Martin"
+              },
+              {
+                "slot_id": 1100,
+                "start_time": "2026-11-02T15:00",
+                "provider": "Isabelle Côté"
+              },
+              {
+                "slot_id": 1109,
+                "start_time": "2026-11-02T15:00",
+                "provider": "Kevin Martin"
+              },
+              {
+                "slot_id": 1101,
+                "start_time": "2026-11-02T16:00",
+                "provider": "Isabelle Côté"
+              },
+              {
+                "slot_id": 1110,
+                "start_time": "2026-11-02T16:00",
+                "provider": "Kevin Martin"
+              }
+            ]
+          }
+        }
+      ],
+      "expected_behaviour": "Says Verdun is closed on Saturdays, and offers either open Saturday cleaning times at Plateau or open weekday times at Verdun.",
+      "reply": "Yes, you can come in for a cleaning at Verdun on Saturday, November 2nd. Would you like to book an appointment at 8 a.m. or perhaps 10 a.m.?",
+      "availability": {
+        "request": {
+          "location": "Verdun",
+          "appointment_type": "cleaning",
+          "first_day": "2026-11-07",
+          "last_day": "2026-11-07"
+        },
+        "open_matching_count": 0,
+        "open_matching_slots": []
+      },
+      "labels": {
+        "language-consistency": "pass",
+        "grounded": "fail",
+        "task-success": "fail",
+        "phone-style": "pass",
+        "availability-correct": "fail"
+      },
+      "notes": "This case is a fail. Saturday November 2nd is not a Saturday, it is a Monday. Failures like this are critical."
+    },
+    {
+      "item_id": "en-verdun-cleaning-saturday/turn-1/alt-1",
+      "required_language": "english",
+      "conversation": [
+        "Agent: Bonjour, hi! Vous êtes à la Clinique dentaire Maple, Maple Dental. Comment puis-je vous aider? How can I help you?",
+        "Caller: Could I come in for a cleaning at Verdun on the Saturday of next week?"
+      ],
+      "tool_results_so_far": [
+        {
+          "name": "check_availability",
+          "arguments": {
+            "location": "Verdun",
+            "appointment_type": "cleaning",
+            "first_day": "2026-11-02",
+            "last_day": "2026-11-02"
+          },
+          "result": {
+            "ok": true,
+            "location": "Verdun",
+            "appointment_type": "cleaning",
+            "open_slot_count": 18,
+            "slots": [
+              {
+                "slot_id": 1093,
+                "start_time": "2026-11-02T08:00",
+                "provider": "Isabelle Côté"
+              },
+              {
+                "slot_id": 1102,
+                "start_time": "2026-11-02T08:00",
+                "provider": "Kevin Martin"
+              },
+              {
+                "slot_id": 1094,
+                "start_time": "2026-11-02T09:00",
+                "provider": "Isabelle Côté"
+              },
+              {
+                "slot_id": 1103,
+                "start_time": "2026-11-02T09:00",
+                "provider": "Kevin Martin"
+              },
+              {
+                "slot_id": 1095,
+                "start_time": "2026-11-02T10:00",
+                "provider": "Isabelle Côté"
+              },
+              {
+                "slot_id": 1104,
+                "start_time": "2026-11-02T10:00",
+                "provider": "Kevin Martin"
+              },
+              {
+                "slot_id": 1096,
+                "start_time": "2026-11-02T11:00",
+                "provider": "Isabelle Côté"
+              },
+              {
+                "slot_id": 1105,
+                "start_time": "2026-11-02T11:00",
+                "provider": "Kevin Martin"
+              },
+              {
+                "slot_id": 1097,
+                "start_time": "2026-11-02T12:00",
+                "provider": "Isabelle Côté"
+              },
+              {
+                "slot_id": 1106,
+                "start_time": "2026-11-02T12:00",
+                "provider": "Kevin Martin"
+              },
+              {
+                "slot_id": 1098,
+                "start_time": "2026-11-02T13:00",
+                "provider": "Isabelle Côté"
+              },
+              {
+                "slot_id": 1107,
+                "start_time": "2026-11-02T13:00",
+                "provider": "Kevin Martin"
+              },
+              {
+                "slot_id": 1099,
+                "start_time": "2026-11-02T14:00",
+                "provider": "Isabelle Côté"
+              },
+              {
+                "slot_id": 1108,
+                "start_time": "2026-11-02T14:00",
+                "provider": "Kevin Martin"
+              },
+              {
+                "slot_id": 1100,
+                "start_time": "2026-11-02T15:00",
+                "provider": "Isabelle Côté"
+              },
+              {
+                "slot_id": 1109,
+                "start_time": "2026-11-02T15:00",
+                "provider": "Kevin Martin"
+              },
+              {
+                "slot_id": 1101,
+                "start_time": "2026-11-02T16:00",
+                "provider": "Isabelle Côté"
+              },
+              {
+                "slot_id": 1110,
+                "start_time": "2026-11-02T16:00",
+                "provider": "Kevin Martin"
+              }
+            ]
+          }
+        }
+      ],
+      "expected_behaviour": "Says Verdun is closed on Saturdays, and offers either open Saturday cleaning times at Plateau or open weekday times at Verdun.",
+      "reply": "Verdun is closed on Saturdays, but our Plateau clinic has cleaning openings that Saturday morning. Would you like me to check the times?",
+      "availability": {
+        "request": {
+          "location": "Verdun",
+          "appointment_type": "cleaning",
+          "first_day": "2026-11-07",
+          "last_day": "2026-11-07"
+        },
+        "open_matching_count": 0,
+        "open_matching_slots": []
+      },
+      "labels": {
+        "language-consistency": "pass",
+        "grounded": "fail",
+        "task-success": "pass",
+        "phone-style": "pass",
+        "availability-correct": "pass"
+      },
+      "notes": "This case fails. The availability is correct, but their is no way the agent could have known that Verdun was closed Saturdays and Plateau is open Saturdays because it never called the 'get_clinic_info' tool."
+    },
+    {
+      "item_id": "en-cleaning-price/turn-1",
+      "required_language": "english",
+      "conversation": [
+        "Agent: Bonjour, hi! Vous êtes à la Clinique dentaire Maple, Maple Dental. Comment puis-je vous aider? How can I help you?",
+        "Caller: How much does a cleaning cost?"
+      ],
+      "tool_results_so_far": [],
+      "expected_behaviour": "Says honestly that it doesn't have pricing information, without giving or estimating any price. It may offer to help with something else, such as booking.",
+      "reply": "I'm sorry, but I don't have the information on pricing. You might want to check with our office directly or visit our website for that detail. Is there anything else I can assist you with today?",
+      "labels": {
+        "language-consistency": "pass",
+        "grounded": "fail",
+        "task-success": "fail",
+        "phone-style": "pass"
+      },
+      "notes": "There is no information that refers to a website. This is halucination."
+    },
+    {
+      "item_id": "en-cleaning-price/turn-1/alt-1",
+      "required_language": "english",
+      "conversation": [
+        "Agent: Bonjour, hi! Vous êtes à la Clinique dentaire Maple, Maple Dental. Comment puis-je vous aider? How can I help you?",
+        "Caller: How much does a cleaning cost?"
+      ],
+      "tool_results_so_far": [],
+      "expected_behaviour": "Says honestly that it doesn't have pricing information, without giving or estimating any price. It may offer to help with something else, such as booking.",
+      "reply": "A cleaning is usually about 150 dollars, but it depends on your insurance. Would you like to book one?",
+      "labels": {
+        "language-consistency": "pass",
+        "grounded": "fail",
+        "task-success": "fail",
+        "phone-style": "pass"
+      },
+      "notes": "This case is a big fail. There is no grounded information on prices which means the agent's response is completely halucinated."
+    },
+    {
+      "item_id": "switch-english-to-french/turn-1",
+      "required_language": "english",
+      "conversation": [
+        "Agent: Bonjour, hi! Vous êtes à la Clinique dentaire Maple, Maple Dental. Comment puis-je vous aider? How can I help you?",
+        "Caller: Hi, what are your hours at Saint-Laurent?"
+      ],
+      "tool_results_so_far": [
+        {
+          "name": "get_clinic_info",
+          "arguments": {
+            "location": "Saint-Laurent",
+            "topic": "hours"
+          },
+          "result": {
+            "ok": true,
+            "topic": "hours",
+            "location": "Saint-Laurent",
+            "details": {
+              "monday": "08:00-17:00",
+              "tuesday": "08:00-17:00",
+              "wednesday": "08:00-17:00",
+              "thursday": "08:00-17:00",
+              "friday": "08:00-17:00",
+              "saturday": "closed",
+              "sunday": "closed"
+            },
+            "open_elsewhere": {
+              "saturday": {
+                "Plateau": "09:00-13:00"
+              },
+              "sunday": {}
+            }
+          }
+        }
+      ],
+      "expected_behaviour": "Says Saint-Laurent is open Monday to Friday, 8 a.m. to 5 p.m.",
+      "reply": "At the Saint-Laurent location, we are open from 8 a.m. to 5 p.m., Monday to Friday. We're closed on weekends. Is there something specific you would like to schedule?",
+      "labels": {
+        "language-consistency": "pass",
+        "grounded": "pass",
+        "task-success": "pass",
+        "phone-style": "pass"
+      },
+      "notes": ""
+    },
+    {
+      "item_id": "switch-english-to-french/turn-2",
+      "required_language": "english",
+      "conversation": [
+        "Agent: Bonjour, hi! Vous êtes à la Clinique dentaire Maple, Maple Dental. Comment puis-je vous aider? How can I help you?",
+        "Caller: Hi, what are your hours at Saint-Laurent?",
+        "Agent: At the Saint-Laurent location, we are open from 8 a.m. to 5 p.m., Monday to Friday. We're closed on weekends. Is there something specific you would like to schedule?",
+        "Caller: Merci! Et le samedi?"
+      ],
+      "tool_results_so_far": [
+        {
+          "name": "get_clinic_info",
+          "arguments": {
+            "location": "Saint-Laurent",
+            "topic": "hours"
+          },
+          "result": {
+            "ok": true,
+            "topic": "hours",
+            "location": "Saint-Laurent",
+            "details": {
+              "monday": "08:00-17:00",
+              "tuesday": "08:00-17:00",
+              "wednesday": "08:00-17:00",
+              "thursday": "08:00-17:00",
+              "friday": "08:00-17:00",
+              "saturday": "closed",
+              "sunday": "closed"
+            },
+            "open_elsewhere": {
+              "saturday": {
+                "Plateau": "09:00-13:00"
+              },
+              "sunday": {}
+            }
+          }
+        }
+      ],
+      "expected_behaviour": "Replies in English: Saint-Laurent is closed on Saturdays, and Plateau is open Saturdays from 9 a.m. to 1 p.m.",
+      "reply": "I'm sorry, but the Saint-Laurent location is closed on Saturdays. However, our Plateau location is open from 9 a.m. to 1 p.m. Would you like to make an appointment there?",
+      "labels": {
+        "language-consistency": "pass",
+        "grounded": "pass",
+        "task-success": "pass",
+        "phone-style": "pass"
+      },
+      "notes": ""
+    },
+    {
+      "item_id": "switch-english-to-french/turn-2/alt-1",
+      "required_language": "english",
+      "conversation": [
+        "Agent: Bonjour, hi! Vous êtes à la Clinique dentaire Maple, Maple Dental. Comment puis-je vous aider? How can I help you?",
+        "Caller: Hi, what are your hours at Saint-Laurent?",
+        "Agent: At the Saint-Laurent location, we are open from 8 a.m. to 5 p.m., Monday to Friday. We're closed on weekends. Is there something specific you would like to schedule?",
+        "Caller: Merci! Et le samedi?"
+      ],
+      "tool_results_so_far": [
+        {
+          "name": "get_clinic_info",
+          "arguments": {
+            "location": "Saint-Laurent",
+            "topic": "hours"
+          },
+          "result": {
+            "ok": true,
+            "topic": "hours",
+            "location": "Saint-Laurent",
+            "details": {
+              "monday": "08:00-17:00",
+              "tuesday": "08:00-17:00",
+              "wednesday": "08:00-17:00",
+              "thursday": "08:00-17:00",
+              "friday": "08:00-17:00",
+              "saturday": "closed",
+              "sunday": "closed"
+            },
+            "open_elsewhere": {
+              "saturday": {
+                "Plateau": "09:00-13:00"
+              },
+              "sunday": {}
+            }
+          }
+        }
+      ],
+      "expected_behaviour": "Replies in English: Saint-Laurent is closed on Saturdays, and Plateau is open Saturdays from 9 a.m. to 1 p.m.",
+      "reply": "Le samedi, la clinique de Saint-Laurent est fermée, mais celle du Plateau est ouverte de 9 h à 13 h. Voulez-vous prendre rendez-vous là-bas?",
+      "labels": {
+        "language-consistency": "fail",
+        "grounded": "pass",
+        "task-success": "fail",
+        "phone-style": "pass"
+      },
+      "notes": "This case is a fail because the agent switched to French without explicitly being asked to."
+    },
+    {
+      "item_id": "bluecross-french-insurer/turn-1",
+      "required_language": "french",
+      "conversation": [
+        "Agent: Bonjour, hi! Vous êtes à la Clinique dentaire Maple, Maple Dental. Comment puis-je vous aider? How can I help you?",
+        "Caller: Bonjour, est-ce que vous acceptez la Croix Bleue?"
+      ],
+      "tool_results_so_far": [
+        {
+          "name": "get_clinic_info",
+          "arguments": {
+            "location": null,
+            "topic": "insurers"
+          },
+          "result": {
+            "ok": true,
+            "topic": "insurers",
+            "location": null,
+            "details": [
+              "Sun Life",
+              "Manulife",
+              "Canada Life",
+              "Desjardins Insurance",
+              "Green Shield Canada",
+              "Blue Cross"
+            ]
+          }
+        }
+      ],
+      "expected_behaviour": "Says yes, Blue Cross (Croix Bleue) is accepted.",
+      "reply": "Oui, nous acceptons la Croix Bleue. Voulez-vous prendre un rendez-vous?",
+      "labels": {
+        "language-consistency": "pass",
+        "grounded": "pass",
+        "task-success": "pass",
+        "phone-style": "pass"
+      },
+      "notes": ""
+    },
+    {
+      "item_id": "bluecross-french-insurer/turn-1/alt-1",
+      "required_language": "french",
+      "conversation": [
+        "Agent: Bonjour, hi! Vous êtes à la Clinique dentaire Maple, Maple Dental. Comment puis-je vous aider? How can I help you?",
+        "Caller: Bonjour, est-ce que vous acceptez la Croix Bleue?"
+      ],
+      "tool_results_so_far": [
+        {
+          "name": "get_clinic_info",
+          "arguments": {
+            "location": null,
+            "topic": "insurers"
+          },
+          "result": {
+            "ok": true,
+            "topic": "insurers",
+            "location": null,
+            "details": [
+              "Sun Life",
+              "Manulife",
+              "Canada Life",
+              "Desjardins Insurance",
+              "Green Shield Canada",
+              "Blue Cross"
+            ]
+          }
+        }
+      ],
+      "expected_behaviour": "Says yes, Blue Cross (Croix Bleue) is accepted.",
+      "reply": "Oui, nous acceptons la Croix Bleue, ainsi que Desjardins, Sun Life et Manulife. Voulez-vous prendre un rendez-vous?",
+      "labels": {
+        "language-consistency": "pass",
+        "grounded": "pass",
+        "task-success": "pass",
+        "phone-style": "fail"
+      },
+      "notes": "This is case is a fail. The caller asked whether 'Blue Cross' was accepted. Therefore, there is no reason for the agent to list all providers."
+    },
+    {
+      "item_id": "bluecross-french-insurer/turn-2",
+      "required_language": "english",
+      "conversation": [
+        "Agent: Bonjour, hi! Vous êtes à la Clinique dentaire Maple, Maple Dental. Comment puis-je vous aider? How can I help you?",
+        "Caller: Bonjour, est-ce que vous acceptez la Croix Bleue?",
+        "Agent: Oui, nous acceptons la Croix Bleue. Voulez-vous prendre un rendez-vous?",
+        "Caller: Sorry, can we do this in English? Where is the Verdun clinic?"
+      ],
+      "tool_results_so_far": [
+        {
+          "name": "get_clinic_info",
+          "arguments": {
+            "location": null,
+            "topic": "insurers"
+          },
+          "result": {
+            "ok": true,
+            "topic": "insurers",
+            "location": null,
+            "details": [
+              "Sun Life",
+              "Manulife",
+              "Canada Life",
+              "Desjardins Insurance",
+              "Green Shield Canada",
+              "Blue Cross"
+            ]
+          }
+        },
+        {
+          "name": "get_clinic_info",
+          "arguments": {
+            "location": "Verdun",
+            "topic": "address"
+          },
+          "result": {
+            "ok": true,
+            "topic": "address",
+            "location": "Verdun",
+            "details": "4455 rue Wellington, Verdun, QC H4G 1W8"
+          }
+        }
+      ],
+      "expected_behaviour": "Replies in English with the Verdun address, 4455 rue Wellington.",
+      "reply": "The Verdun clinic is located at 4455 Wellington Street, Verdun, QC H4G 1W8. Would you like to schedule an appointment there?",
+      "labels": {
+        "language-consistency": "pass",
+        "grounded": "pass",
+        "task-success": "pass",
+        "phone-style": "fail"
+      },
+      "notes": "This case is a fail. The agent should not state the ZIP code with the address."
+    },
+    {
+      "item_id": "unclear-then-french/turn-1",
+      "required_language": "the fixed bilingual line",
+      "conversation": [
+        "Agent: Bonjour, hi! Vous êtes à la Clinique dentaire Maple, Maple Dental. Comment puis-je vous aider? How can I help you?",
+        "Caller: Mm-hmm."
+      ],
+      "tool_results_so_far": [],
+      "expected_behaviour": "The fixed bilingual line offering help in French or English.",
+      "reply": "Je peux vous aider en français ou en anglais. I can help you in French or English.",
+      "labels": {
+        "task-success": "pass"
+      },
+      "notes": ""
+    },
+    {
+      "item_id": "unclear-then-french/turn-2",
+      "required_language": "french",
+      "conversation": [
+        "Agent: Bonjour, hi! Vous êtes à la Clinique dentaire Maple, Maple Dental. Comment puis-je vous aider? How can I help you?",
+        "Caller: Mm-hmm.",
+        "Agent: Je peux vous aider en français ou en anglais. I can help you in French or English.",
+        "Caller: Oui, je voudrais savoir vos heures d'ouverture à Verdun."
+      ],
+      "tool_results_so_far": [
+        {
+          "name": "get_clinic_info",
+          "arguments": {
+            "location": "Verdun",
+            "topic": "hours"
+          },
+          "result": {
+            "ok": true,
+            "topic": "hours",
+            "location": "Verdun",
+            "details": {
+              "monday": "08:00-17:00",
+              "tuesday": "08:00-17:00",
+              "wednesday": "08:00-17:00",
+              "thursday": "08:00-17:00",
+              "friday": "08:00-17:00",
+              "saturday": "closed",
+              "sunday": "closed"
+            },
+            "open_elsewhere": {
+              "saturday": {
+                "Plateau": "09:00-13:00"
+              },
+              "sunday": {}
+            }
+          }
+        }
+      ],
+      "expected_behaviour": "Says, in French, that Verdun is open Monday to Friday from 8 a.m. to 5 p.m.",
+      "reply": "À Verdun, nous sommes ouverts du lundi au vendredi de 8 heures à 17 heures. Nous sommes fermés le samedi et le dimanche. Avez-vous besoin d'un rendez-vous?",
+      "labels": {
+        "language-consistency": "pass",
+        "grounded": "pass",
+        "task-success": "pass",
+        "phone-style": "pass"
+      },
+      "notes": ""
+    },
+    {
+      "item_id": "unclear-then-french/turn-2/alt-1",
+      "required_language": "french",
+      "conversation": [
+        "Agent: Bonjour, hi! Vous êtes à la Clinique dentaire Maple, Maple Dental. Comment puis-je vous aider? How can I help you?",
+        "Caller: Mm-hmm.",
+        "Agent: Je peux vous aider en français ou en anglais. I can help you in French or English.",
+        "Caller: Oui, je voudrais savoir vos heures d'ouverture à Verdun."
+      ],
+      "tool_results_so_far": [
+        {
+          "name": "get_clinic_info",
+          "arguments": {
+            "location": "Verdun",
+            "topic": "hours"
+          },
+          "result": {
+            "ok": true,
+            "topic": "hours",
+            "location": "Verdun",
+            "details": {
+              "monday": "08:00-17:00",
+              "tuesday": "08:00-17:00",
+              "wednesday": "08:00-17:00",
+              "thursday": "08:00-17:00",
+              "friday": "08:00-17:00",
+              "saturday": "closed",
+              "sunday": "closed"
+            },
+            "open_elsewhere": {
+              "saturday": {
+                "Plateau": "09:00-13:00"
+              },
+              "sunday": {}
+            }
+          }
+        }
+      ],
+      "expected_behaviour": "Says, in French, that Verdun is open Monday to Friday from 8 a.m. to 5 p.m.",
+      "reply": "À Verdun, nous sommes ouverts du lundi au vendredi, from 8 a.m. to 5 p.m. Avez-vous besoin d'un rendez-vous?",
+      "labels": {
+        "language-consistency": "fail",
+        "grounded": "pass",
+        "task-success": "fail",
+        "phone-style": "pass"
+      },
+      "notes": "This case is a fail. The agent was speaks both in French and English in a single reply. It should only speak in either French or English."
+    },
+    {
+      "item_id": "en-street-name-sounds-french/turn-1",
+      "required_language": "english",
+      "conversation": [
+        "Agent: Bonjour, hi! Vous êtes à la Clinique dentaire Maple, Maple Dental. Comment puis-je vous aider? How can I help you?",
+        "Caller: Hi, is the clinic on rue Wellington open on Friday?"
+      ],
+      "tool_results_so_far": [
+        {
+          "name": "get_clinic_info",
+          "arguments": {
+            "location": "Verdun",
+            "topic": "hours"
+          },
+          "result": {
+            "ok": true,
+            "topic": "hours",
+            "location": "Verdun",
+            "details": {
+              "monday": "08:00-17:00",
+              "tuesday": "08:00-17:00",
+              "wednesday": "08:00-17:00",
+              "thursday": "08:00-17:00",
+              "friday": "08:00-17:00",
+              "saturday": "closed",
+              "sunday": "closed"
+            },
+            "open_elsewhere": {
+              "saturday": {
+                "Plateau": "09:00-13:00"
+              },
+              "sunday": {}
+            }
+          }
+        }
+      ],
+      "expected_behaviour": "Works out from the clinic addresses that rue Wellington is the Verdun clinic, and says it is open Friday from 8 a.m. to 5 p.m.",
+      "reply": "Yes, the clinic on rue Wellington in Verdun is open this Friday from 8 a.m. to 5 p.m. Would you like to schedule an appointment?",
+      "labels": {
+        "language-consistency": "pass",
+        "grounded": "fail",
+        "task-success": "pass",
+        "phone-style": "pass"
+      },
+      "notes": "This case is a fail because there is no available information about the Verdun location being on Wellington. This response was halucinated."
+    },
+    {
+      "item_id": "explicit-switch-french-to-english/turn-1",
+      "required_language": "french",
+      "conversation": [
+        "Agent: Bonjour, hi! Vous êtes à la Clinique dentaire Maple, Maple Dental. Comment puis-je vous aider? How can I help you?",
+        "Caller: Bonjour, où se trouve la clinique de Verdun?"
+      ],
+      "tool_results_so_far": [
+        {
+          "name": "get_clinic_info",
+          "arguments": {
+            "location": "Verdun",
+            "topic": "address"
+          },
+          "result": {
+            "ok": true,
+            "topic": "address",
+            "location": "Verdun",
+            "details": "4455 rue Wellington, Verdun, QC H4G 1W8"
+          }
+        }
+      ],
+      "expected_behaviour": "Gives the Verdun address, 4455 rue Wellington, in French.",
+      "reply": "La clinique de Verdun se trouve au 4455 rue Wellington, Verdun, QC H4G 1W8. Avez-vous besoin d'information sur les heures d'ouverture?",
+      "labels": {
+        "language-consistency": "pass",
+        "grounded": "pass",
+        "task-success": "pass",
+        "phone-style": "fail"
+      },
+      "notes": "The ZIP code should not be included the address reply."
+    },
+    {
+      "item_id": "explicit-switch-french-to-english/turn-2",
+      "required_language": "english",
+      "conversation": [
+        "Agent: Bonjour, hi! Vous êtes à la Clinique dentaire Maple, Maple Dental. Comment puis-je vous aider? How can I help you?",
+        "Caller: Bonjour, où se trouve la clinique de Verdun?",
+        "Agent: La clinique de Verdun se trouve au 4455 rue Wellington, Verdun, QC H4G 1W8. Avez-vous besoin d'information sur les heures d'ouverture?",
+        "Caller: Sorry, could we continue in English, please?"
+      ],
+      "tool_results_so_far": [
+        {
+          "name": "get_clinic_info",
+          "arguments": {
+            "location": "Verdun",
+            "topic": "address"
+          },
+          "result": {
+            "ok": true,
+            "topic": "address",
+            "location": "Verdun",
+            "details": "4455 rue Wellington, Verdun, QC H4G 1W8"
+          }
+        }
+      ],
+      "expected_behaviour": "Agrees to continue in English and replies in English, without greeting the caller again.",
+      "reply": "Of course! How can I assist you further?",
+      "labels": {
+        "language-consistency": "pass",
+        "grounded": "pass",
+        "task-success": "pass",
+        "phone-style": "pass"
+      },
+      "notes": ""
+    },
+    {
+      "item_id": "explicit-switch-french-to-english/turn-3",
+      "required_language": "english",
+      "conversation": [
+        "Agent: Bonjour, hi! Vous êtes à la Clinique dentaire Maple, Maple Dental. Comment puis-je vous aider? How can I help you?",
+        "Caller: Bonjour, où se trouve la clinique de Verdun?",
+        "Agent: La clinique de Verdun se trouve au 4455 rue Wellington, Verdun, QC H4G 1W8. Avez-vous besoin d'information sur les heures d'ouverture?",
+        "Caller: Sorry, could we continue in English, please?",
+        "Agent: Of course! How can I assist you further?",
+        "Caller: Is there parking there?"
+      ],
+      "tool_results_so_far": [
+        {
+          "name": "get_clinic_info",
+          "arguments": {
+            "location": "Verdun",
+            "topic": "address"
+          },
+          "result": {
+            "ok": true,
+            "topic": "address",
+            "location": "Verdun",
+            "details": "4455 rue Wellington, Verdun, QC H4G 1W8"
+          }
+        },
+        {
+          "name": "get_clinic_info",
+          "arguments": {
+            "location": "Verdun",
+            "topic": "parking"
+          },
+          "result": {
+            "ok": true,
+            "topic": "parking",
+            "location": "Verdun",
+            "details": "Free parking for patients in the lot behind the building, entrance on rue Galt."
+          }
+        }
+      ],
+      "expected_behaviour": "Says, in English, that there is free parking for patients in the lot behind the building, with the entrance on rue Galt.",
+      "reply": "Yes, there is free parking for patients in the lot behind the building, with entrance on rue Galt. Would you like to schedule an appointment?",
+      "labels": {
+        "language-consistency": "pass",
+        "grounded": "pass",
+        "task-success": "pass",
+        "phone-style": "pass"
+      },
+      "notes": ""
+    }
+  ]
+}

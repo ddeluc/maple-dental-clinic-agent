@@ -180,6 +180,36 @@ def style_inputs(case: dict[str, Any], turn_results: list[dict[str, Any]]) -> li
     return judge_inputs
 
 
+# Each judge score and its instructions in judge_prompts.yaml.
+JUDGE_PROMPT_NAMES = {
+    "language-consistency": "language_consistency",
+    "grounded": "grounded",
+    "task-success": "task_success",
+    "phone-style": "phone_style",
+}
+
+
+def judge_inputs_for(
+    score_name: str,
+    case: dict[str, Any],
+    turn_results: list[dict[str, Any]],
+    greeting: str,
+    today: date,
+) -> list[str | None]:
+    """What one judge is shown for each turn of a case."""
+    # One place that knows which inputs go with which judge, shared by the
+    # eval run and by calibration, so the two always judge the same way.
+    if score_name == "language-consistency":
+        return language_inputs(case, turn_results)
+    if score_name == "grounded":
+        return grounded_inputs(case, turn_results, greeting, today)
+    if score_name == "task-success":
+        return task_inputs(case, turn_results, greeting)
+    if score_name == "phone-style":
+        return style_inputs(case, turn_results)
+    raise ValueError(f"No judge for score '{score_name}'")
+
+
 def judge_case(
     client: OpenAI,
     prompts: dict[str, str],
@@ -189,23 +219,10 @@ def judge_case(
     today: date,
 ) -> dict[str, CheckResult]:
     """Run every judge on one case. Judges that skip every turn are left out."""
-    results = {
-        "language-consistency": judge_each_turn(
-            client, prompts["language_consistency"], language_inputs(case, turn_results)
-        ),
-        "grounded": judge_each_turn(
-            client, prompts["grounded"], grounded_inputs(case, turn_results, greeting, today)
-        ),
-        "task-success": judge_each_turn(
-            client, prompts["task_success"], task_inputs(case, turn_results, greeting)
-        ),
-        "phone-style": judge_each_turn(
-            client, prompts["phone_style"], style_inputs(case, turn_results)
-        ),
-    }
-
     scores = {}
-    for score_name, result in results.items():
+    for score_name, prompt_name in JUDGE_PROMPT_NAMES.items():
+        judge_inputs = judge_inputs_for(score_name, case, turn_results, greeting, today)
+        result = judge_each_turn(client, prompts[prompt_name], judge_inputs)
         if result is not None:
             scores[score_name] = result
     return scores
