@@ -11,10 +11,13 @@ from fastapi.testclient import TestClient
 from agent.tools import (
     MAX_SLOTS_RETURNED,
     NOT_VERIFIED,
+    NOT_VERIFIED_PATIENTS_APPOINTMENT,
     CallState,
     book_appointment,
+    cancel_appointment,
     check_availability,
     get_clinic_info,
+    reschedule_appointment,
     run_tool,
     tool_definitions,
     verify_patient,
@@ -323,6 +326,146 @@ def test_book_a_taken_slot_is_an_error_result(backend):
     assert result == {"ok": False, "error": SLOT_TAKEN}
 
 
+# --- reschedule_appointment and cancel_appointment ---
+
+
+def book_helene_on_an_earlier_call(backend: TestClient) -> dict:
+    """Book Hélène's first open Verdun cleaning, as if on an earlier call."""
+    # Its own CallState, so the tests below start a new call in which
+    # nobody is verified yet, like a patient phoning back.
+    earlier_call = CallState()
+    patient_id = verify_patient(backend, earlier_call, **HELENE)["patient_id"]
+    slot = first_open_verdun_cleaning(backend)
+    return book_appointment(backend, earlier_call, patient_id, slot["slot_id"], "cleaning")
+
+
+def appointment_row(db_path: Path, appointment_id: int) -> tuple:
+    conn = sqlite3.connect(db_path)
+    try:
+        return conn.execute(
+            "SELECT slot_id, status, cancel_reason FROM appointments WHERE id = ?",
+            (appointment_id,),
+        ).fetchone()
+    finally:
+        conn.close()
+
+
+def test_verify_patient_lists_upcoming_appointments(backend):
+    appointment = book_helene_on_an_earlier_call(backend)
+
+    result = verify_patient(backend, CallState(), **HELENE)
+
+    listed_ids = []
+    for upcoming in result["upcoming_appointments"]:
+        listed_ids.append(upcoming["appointment_id"])
+    assert appointment["appointment_id"] in listed_ids
+
+
+def test_reschedule_after_verifying_moves_the_appointment(backend, db_path):
+    appointment = book_helene_on_an_earlier_call(backend)
+    call_state = CallState()
+    verify_patient(backend, call_state, **HELENE)
+    new_slot = first_open_verdun_cleaning(backend)
+
+    result = reschedule_appointment(
+        backend, call_state, appointment["appointment_id"], new_slot["slot_id"]
+    )
+
+    assert result["ok"] is True
+    assert result["start_time"] == new_slot["start_time"]
+    assert appointment_row(db_path, appointment["appointment_id"]) == (
+        new_slot["slot_id"], "booked", None,
+    )
+
+
+def test_cancel_after_verifying_cancels_and_stores_the_reason(backend, db_path):
+    appointment = book_helene_on_an_earlier_call(backend)
+    call_state = CallState()
+    verify_patient(backend, call_state, **HELENE)
+    slot_id = appointment_row(db_path, appointment["appointment_id"])[0]
+
+    result = cancel_appointment(
+        backend, call_state, appointment["appointment_id"], "Scheduling conflict"
+    )
+
+    assert result["ok"] is True
+    assert result["status"] == "cancelled"
+    assert appointment_row(db_path, appointment["appointment_id"]) == (
+        slot_id, "cancelled", "Scheduling conflict",
+    )
+
+
+def test_reschedule_and_cancel_without_verifying_change_nothing(backend, db_path):
+    appointment = book_helene_on_an_earlier_call(backend)
+    row_before = appointment_row(db_path, appointment["appointment_id"])
+    new_slot = first_open_verdun_cleaning(backend)
+    call_state = CallState()
+
+    moved = reschedule_appointment(
+        backend, call_state, appointment["appointment_id"], new_slot["slot_id"]
+    )
+    cancelled = cancel_appointment(backend, call_state, appointment["appointment_id"], "Travel")
+
+    assert moved == {"ok": False, "error": NOT_VERIFIED}
+    assert cancelled == {"ok": False, "error": NOT_VERIFIED}
+    assert appointment_row(db_path, appointment["appointment_id"]) == row_before
+
+
+def test_reschedule_and_cancel_after_failed_verification_change_nothing(backend, db_path):
+    appointment = book_helene_on_an_earlier_call(backend)
+    row_before = appointment_row(db_path, appointment["appointment_id"])
+    new_slot = first_open_verdun_cleaning(backend)
+    call_state = CallState()
+    # Right name and birthday, wrong phone: the caller doesn't get through.
+    assert verify_patient(backend, call_state, **dict(HELENE, phone="514-555-0199"))["ok"] is False
+
+    moved = reschedule_appointment(
+        backend, call_state, appointment["appointment_id"], new_slot["slot_id"]
+    )
+    cancelled = cancel_appointment(backend, call_state, appointment["appointment_id"], "Travel")
+
+    assert moved == {"ok": False, "error": NOT_VERIFIED}
+    assert cancelled == {"ok": False, "error": NOT_VERIFIED}
+    assert appointment_row(db_path, appointment["appointment_id"]) == row_before
+
+
+def test_reschedule_and_cancel_someone_elses_appointment_change_nothing(backend, db_path):
+    appointment = book_helene_on_an_earlier_call(backend)
+    row_before = appointment_row(db_path, appointment["appointment_id"])
+    new_slot = first_open_verdun_cleaning(backend)
+    call_state = CallState()
+    verify_patient(backend, call_state, **JEAN_FRANCOIS)  # verified, but not Hélène
+
+    moved = reschedule_appointment(
+        backend, call_state, appointment["appointment_id"], new_slot["slot_id"]
+    )
+    cancelled = cancel_appointment(backend, call_state, appointment["appointment_id"], "Travel")
+
+    assert moved == {"ok": False, "error": NOT_VERIFIED_PATIENTS_APPOINTMENT}
+    assert cancelled == {"ok": False, "error": NOT_VERIFIED_PATIENTS_APPOINTMENT}
+    assert appointment_row(db_path, appointment["appointment_id"]) == row_before
+
+
+def test_cancel_unknown_appointment_is_an_error_result(backend):
+    call_state = CallState()
+    verify_patient(backend, call_state, **HELENE)
+
+    result = cancel_appointment(backend, call_state, 999_999, "Travel")
+
+    assert result == {"ok": False, "error": "No appointment with id 999999."}
+
+
+def test_cancel_twice_is_an_error_result(backend):
+    appointment = book_helene_on_an_earlier_call(backend)
+    call_state = CallState()
+    verify_patient(backend, call_state, **HELENE)
+    cancel_appointment(backend, call_state, appointment["appointment_id"], "Travel")
+
+    result = cancel_appointment(backend, call_state, appointment["appointment_id"], "Travel")
+
+    assert result == {"ok": False, "error": "That appointment is already cancelled."}
+
+
 # --- run_tool and the definitions ---
 
 
@@ -339,6 +482,32 @@ def test_run_tool_refuses_a_booking_the_model_asks_for_without_verifying(backend
 
     assert result == {"ok": False, "error": NOT_VERIFIED}
     assert count_booked(db_path) == booked_before
+
+
+def test_run_tool_refuses_a_cancel_the_model_asks_for_without_verifying(backend, db_path):
+    appointment = book_helene_on_an_earlier_call(backend)
+    row_before = appointment_row(db_path, appointment["appointment_id"])
+    arguments = json.dumps({"appointment_id": appointment["appointment_id"], "reason": "Travel"})
+
+    result = run_tool(backend, CallState(), "cancel_appointment", arguments)
+
+    assert result == {"ok": False, "error": NOT_VERIFIED}
+    assert appointment_row(db_path, appointment["appointment_id"]) == row_before
+
+
+def test_run_tool_reschedules_for_a_verified_patient(backend, db_path):
+    appointment = book_helene_on_an_earlier_call(backend)
+    call_state = CallState()
+    verify_patient(backend, call_state, **HELENE)
+    new_slot = first_open_verdun_cleaning(backend)
+    arguments = json.dumps(
+        {"appointment_id": appointment["appointment_id"], "new_slot_id": new_slot["slot_id"]}
+    )
+
+    result = run_tool(backend, call_state, "reschedule_appointment", arguments)
+
+    assert result["ok"] is True
+    assert appointment_row(db_path, appointment["appointment_id"])[0] == new_slot["slot_id"]
 
 
 def test_run_tool_parses_arguments_and_calls_the_tool(backend):
@@ -370,6 +539,7 @@ def test_tool_definitions_offer_only_the_configured_locations():
         names.append(definition["name"])
     assert names == [
         "get_clinic_info", "check_availability", "verify_patient", "book_appointment",
+        "reschedule_appointment", "cancel_appointment",
     ]
 
     availability = definitions[1]["parameters"]["properties"]

@@ -475,6 +475,73 @@ def test_book_unknown_slot_returns_404(client, db_path):
     assert response.status_code == 404
 
 
+# --- GET /appointments/{id} ---
+
+
+def test_get_appointment_returns_it(client, db_path):
+    appointment = book_first_open_cleaning(client, db_path)
+
+    response = client.get(f"/appointments/{appointment['id']}")
+
+    assert response.status_code == 200
+    assert response.json() == appointment
+
+
+def test_get_unknown_appointment_returns_404(client):
+    response = client.get("/appointments/999999")
+    assert response.status_code == 404
+
+
+# --- GET /patients/{id}/appointments ---
+
+
+def upcoming_ids(client: TestClient, patient_id: int) -> list[int]:
+    ids = []
+    for appointment in client.get(f"/patients/{patient_id}/appointments").json():
+        ids.append(appointment["id"])
+    return ids
+
+
+def test_patient_appointments_are_booked_and_soonest_first(client, db_path):
+    patient_id = patient_id_with_phone(db_path, MARIE_PHONE)
+    slots = open_slots(client, "cleaning", FIRST_DAY)
+    # Booked in reverse time order, so the sorting has to come from the query.
+    later = book(client, patient_id, slots[1]["id"], "cleaning").json()
+    earlier = book(client, patient_id, slots[0]["id"], "cleaning").json()
+
+    response = client.get(f"/patients/{patient_id}/appointments")
+
+    assert response.status_code == 200
+    appointments = response.json()
+    start_times = []
+    for appointment in appointments:
+        assert appointment["patient_id"] == patient_id
+        assert appointment["status"] == "booked"
+        start_times.append(appointment["start_time"])
+    assert start_times == sorted(start_times)
+    ids = upcoming_ids(client, patient_id)
+    assert ids.index(earlier["id"]) < ids.index(later["id"])
+
+
+def test_patient_appointments_leave_out_cancelled_ones(client, db_path):
+    appointment = book_first_open_cleaning(client, db_path)
+    client.delete(f"/appointments/{appointment['id']}", params={"reason": "Feeling unwell"})
+
+    assert appointment["id"] not in upcoming_ids(client, appointment["patient_id"])
+
+
+def test_patient_appointments_leave_out_past_ones(client, db_path):
+    appointment = book_first_open_cleaning(client, db_path)
+    set_now(start_of(appointment) + timedelta(minutes=1))
+
+    assert appointment["id"] not in upcoming_ids(client, appointment["patient_id"])
+
+
+def test_patient_appointments_unknown_patient_returns_404(client):
+    response = client.get("/patients/999999/appointments")
+    assert response.status_code == 404
+
+
 # --- PATCH /appointments/{id} ---
 
 

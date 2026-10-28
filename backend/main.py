@@ -35,9 +35,11 @@ ClinicTopic = Literal["hours", "address", "parking", "insurers"]
 # The project definition allows bookings from now up to 4 weeks ahead.
 BOOKING_WINDOW_DAYS = 28
 
-# Everything the API returns about one appointment, plus the provider role
-# its type needs, which rescheduling uses to check the new slot.
-APPOINTMENT_QUERY = """
+# Everything the API returns about an appointment, plus the provider role
+# its type needs, which rescheduling uses to check the new slot. It has no
+# WHERE clause: one appointment and a patient's appointments both start
+# from these columns and joins, and each adds its own condition.
+APPOINTMENT_SELECT = """
     SELECT
         appointments.id,
         appointments.patient_id,
@@ -56,7 +58,6 @@ APPOINTMENT_QUERY = """
     JOIN slots ON slots.id = appointments.slot_id
     JOIN locations ON locations.id = slots.location_id
     JOIN providers ON providers.id = slots.provider_id
-    WHERE appointments.id = ?
 """
 
 # A slot is open when no booked appointment points to it (cancelled ones
@@ -357,7 +358,9 @@ def verify_patient(request: VerifyRequest, db: Database) -> VerifyResponse:
 
 
 def find_appointment_row(db: sqlite3.Connection, appointment_id: int) -> sqlite3.Row:
-    row = db.execute(APPOINTMENT_QUERY, (appointment_id,)).fetchone()
+    row = db.execute(
+        APPOINTMENT_SELECT + " WHERE appointments.id = ?", (appointment_id,)
+    ).fetchone()
     if row is None:
         raise HTTPException(
             status_code=404, detail=f"No appointment with id {appointment_id}."
@@ -443,6 +446,37 @@ def write_slot_change(db: sqlite3.Connection, sql: str, parameters: tuple) -> sq
         db.rollback()
         raise HTTPException(status_code=409, detail=SLOT_TAKEN)
     return cursor
+
+
+@app.get("/appointments/{appointment_id}")
+def get_appointment(appointment_id: int, db: Database) -> Appointment:
+    return appointment_from_row(find_appointment_row(db, appointment_id))
+
+
+@app.get("/patients/{patient_id}/appointments")
+def list_upcoming_appointments(patient_id: int, db: Database, now: Now) -> list[Appointment]:
+    """Return a patient's booked appointments that haven't started yet, soonest first."""
+    patient_row = db.execute(
+        "SELECT id FROM patients WHERE id = ?", (patient_id,)
+    ).fetchone()
+    if patient_row is None:
+        raise HTTPException(status_code=404, detail=f"No patient with id {patient_id}.")
+
+    # Cancelled and past appointments are left out: neither can be
+    # rescheduled or cancelled, so the agent has no use for them.
+    rows = db.execute(
+        APPOINTMENT_SELECT
+        + " WHERE appointments.patient_id = ?"
+        " AND appointments.status = 'booked'"
+        " AND slots.start_time >= ?"
+        " ORDER BY slots.start_time",
+        (patient_id, now.isoformat(timespec="minutes")),
+    ).fetchall()
+
+    appointments = []
+    for row in rows:
+        appointments.append(appointment_from_row(row))
+    return appointments
 
 
 @app.post("/appointments", status_code=201)

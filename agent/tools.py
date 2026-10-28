@@ -37,9 +37,14 @@ ALTERNATIVE_SEARCH_DAYS = 14
 ALTERNATIVE_SLOTS_PER_OPTION = 3
 
 NOT_VERIFIED = (
-    "This patient hasn't been verified on this call, so nothing was booked."
+    "This patient hasn't been verified on this call, so nothing was changed."
     " Ask for their full name, date of birth and phone number, and call"
     " verify_patient first."
+)
+NOT_VERIFIED_PATIENTS_APPOINTMENT = (
+    "That appointment doesn't belong to a patient verified on this call, so"
+    " nothing was changed. Use an appointment_id from the verified patient's"
+    " upcoming_appointments."
 )
 
 ToolResult = dict[str, Any]
@@ -349,7 +354,18 @@ def check_availability(
     return result
 
 
-# --- Verification and booking ---
+# --- Verification, booking, rescheduling and cancelling ---
+
+
+def summarize_appointment(appointment: dict[str, Any]) -> dict[str, Any]:
+    """Keep only the appointment fields the model needs to talk about it."""
+    return {
+        "appointment_id": appointment["id"],
+        "appointment_type": appointment["type"],
+        "location": appointment["location_name"],
+        "start_time": appointment["start_time"],
+        "provider": appointment["provider_name"],
+    }
 
 
 def verify_patient(
@@ -363,12 +379,24 @@ def verify_patient(
     result = call_backend(backend, "POST", "/patients/verify", json_body=body)
     if not result["ok"]:
         return result
-
     patient_id = result["data"]["patient_id"]
+
+    # The patient's appointments come back with the verification, because a
+    # caller who wants to reschedule or cancel has to be verified first
+    # anyway. A separate tool would cost the model an extra round trip.
+    appointments_result = call_backend(backend, "GET", f"/patients/{patient_id}/appointments")
+    if not appointments_result["ok"]:
+        return appointments_result
+    upcoming = []
+    for appointment in appointments_result["data"]:
+        upcoming.append(summarize_appointment(appointment))
+
     # This is the only place a patient becomes verified, and only after the
-    # backend matched all three details.
+    # backend matched all three details. It happens after the appointments
+    # request so that a failed tool never leaves a patient half-verified:
+    # the model sees an error, and the code agrees nobody was verified.
     call_state.verified_patient_ids.add(patient_id)
-    return {"ok": True, "patient_id": patient_id}
+    return {"ok": True, "patient_id": patient_id, "upcoming_appointments": upcoming}
 
 
 def book_appointment(
@@ -391,15 +419,68 @@ def book_appointment(
 
     # What the backend actually booked, so the agent confirms the real
     # appointment rather than what it remembers asking for.
-    appointment = result["data"]
-    return {
-        "ok": True,
-        "appointment_id": appointment["id"],
-        "appointment_type": appointment["type"],
-        "location": appointment["location_name"],
-        "start_time": appointment["start_time"],
-        "provider": appointment["provider_name"],
-    }
+    return {"ok": True, **summarize_appointment(result["data"])}
+
+
+def check_appointment_belongs_to_verified_patient(
+    backend: httpx.Client, call_state: CallState, appointment_id: int
+) -> ToolResult:
+    """Allow a change only to an appointment of a patient verified on this call."""
+    # Checking "is anyone verified?" isn't enough: a verified caller could
+    # then move or cancel someone else's appointment by its id. So the
+    # appointment is looked up, and its owner must be a verified patient.
+    #
+    # With nobody verified there is nothing to compare against, so refuse
+    # before asking the backend. That also means an unverified caller
+    # can't learn whether an appointment id exists.
+    if not call_state.verified_patient_ids:
+        return tool_error(NOT_VERIFIED)
+
+    result = call_backend(backend, "GET", f"/appointments/{appointment_id}")
+    if not result["ok"]:
+        return result
+    if result["data"]["patient_id"] not in call_state.verified_patient_ids:
+        return tool_error(NOT_VERIFIED_PATIENTS_APPOINTMENT)
+    return {"ok": True}
+
+
+def reschedule_appointment(
+    backend: httpx.Client,
+    call_state: CallState,
+    appointment_id: int,
+    new_slot_id: int,
+) -> ToolResult:
+    # Checked in code for the same reason as in book_appointment.
+    allowed = check_appointment_belongs_to_verified_patient(backend, call_state, appointment_id)
+    if not allowed["ok"]:
+        return allowed
+
+    body = {"slot_id": new_slot_id}
+    result = call_backend(backend, "PATCH", f"/appointments/{appointment_id}", json_body=body)
+    if not result["ok"]:
+        return result
+    # The appointment as it is now, so the agent confirms the new time.
+    return {"ok": True, **summarize_appointment(result["data"])}
+
+
+def cancel_appointment(
+    backend: httpx.Client,
+    call_state: CallState,
+    appointment_id: int,
+    reason: str,
+) -> ToolResult:
+    allowed = check_appointment_belongs_to_verified_patient(backend, call_state, appointment_id)
+    if not allowed["ok"]:
+        return allowed
+
+    params = {"reason": reason}
+    result = call_backend(backend, "DELETE", f"/appointments/{appointment_id}", params)
+    if not result["ok"]:
+        return result
+    # "status" is "cancelled": the backend keeps the row, so the result
+    # says plainly that it is no longer booked.
+    cancelled = result["data"]
+    return {"ok": True, "status": cancelled["status"], **summarize_appointment(cancelled)}
 
 
 # --- What the model sees, and how its requests are dispatched ---
@@ -409,6 +490,8 @@ TOOL_FUNCTIONS: dict[str, Callable[..., ToolResult]] = {
     "check_availability": check_availability,
     "verify_patient": verify_patient,
     "book_appointment": book_appointment,
+    "reschedule_appointment": reschedule_appointment,
+    "cancel_appointment": cancel_appointment,
 }
 
 
@@ -470,7 +553,9 @@ def tool_definitions(location_names: list[str]) -> list[dict[str, Any]]:
         "name": "verify_patient",
         "description": (
             "Check that the caller is a patient on file. The name, date of"
-            " birth and phone number must all match. Required before booking."
+            " birth and phone number must all match. Required before booking,"
+            " rescheduling or cancelling. On success, also lists the patient's"
+            " upcoming appointments."
         ),
         "strict": True,
         "parameters": {
@@ -503,11 +588,56 @@ def tool_definitions(location_names: list[str]) -> list[dict[str, Any]]:
             "additionalProperties": False,
         },
     }
+    reschedule_appointment_definition = {
+        "type": "function",
+        "name": "reschedule_appointment",
+        "description": (
+            "Move a verified patient's appointment to another open slot of the"
+            " same appointment type. Only call it after the caller has"
+            " confirmed the new day, time and location."
+        ),
+        "strict": True,
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "appointment_id": {
+                    "type": "integer",
+                    "description": "From verify_patient's upcoming_appointments",
+                },
+                "new_slot_id": {"type": "integer", "description": "From check_availability"},
+            },
+            "required": ["appointment_id", "new_slot_id"],
+            "additionalProperties": False,
+        },
+    }
+    cancel_appointment_definition = {
+        "type": "function",
+        "name": "cancel_appointment",
+        "description": (
+            "Cancel a verified patient's appointment and record why. Only call"
+            " it after the caller has confirmed which appointment to cancel."
+        ),
+        "strict": True,
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "appointment_id": {
+                    "type": "integer",
+                    "description": "From verify_patient's upcoming_appointments",
+                },
+                "reason": {"type": "string", "description": "In the caller's words, briefly"},
+            },
+            "required": ["appointment_id", "reason"],
+            "additionalProperties": False,
+        },
+    }
     return [
         get_clinic_info_definition,
         check_availability_definition,
         verify_patient_definition,
         book_appointment_definition,
+        reschedule_appointment_definition,
+        cancel_appointment_definition,
     ]
 
 

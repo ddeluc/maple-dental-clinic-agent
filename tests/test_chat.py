@@ -238,6 +238,9 @@ class RecordingBackend:
         self.requests.append(request)
         if request.url.path == "/patients/verify":
             return httpx.Response(200, json={"patient_id": self.PATIENT_ID})
+        # verify_patient also asks for the patient's upcoming appointments.
+        if request.url.path == f"/patients/{self.PATIENT_ID}/appointments":
+            return httpx.Response(200, json=[])
         # The same shape the real POST /appointments returns.
         return httpx.Response(
             201,
@@ -305,8 +308,10 @@ def test_run_chat_remembers_verification_from_an_earlier_turn(monkeypatch):
 
     # The second turn's booking went through: the call's state kept the
     # verification from the first turn.
-    assert recording.paths() == ["/patients/verify", "/appointments"]
-    assert json.loads(recording.requests[1].content) == {
+    assert recording.paths() == [
+        "/patients/verify", f"/patients/{RecordingBackend.PATIENT_ID}/appointments", "/appointments",
+    ]
+    assert json.loads(recording.requests[2].content) == {
         "patient_id": 7, "slot_id": 12, "type": "cleaning",
     }
 
