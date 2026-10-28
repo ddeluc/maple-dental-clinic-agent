@@ -8,6 +8,7 @@ explain the problem to the caller, and the conversation keeps going.
 
 import json
 from collections.abc import Callable
+from datetime import date, timedelta
 from typing import Any
 
 import httpx
@@ -24,7 +25,18 @@ APPOINTMENT_TYPES = ["cleaning", "checkup"]
 # three, so the model gets the earliest ones and is told how many exist.
 MAX_SLOTS_RETURNED = 20
 
+# How the backend writes the hours of a day a location is closed.
+CLOSED = "closed"
+
 ToolResult = dict[str, Any]
+
+
+def describe_day(day: date) -> str:
+    """A day as the model sees it everywhere: "Monday 2026-11-02"."""
+    # The weekday is always spelled out next to the date, in the calendar
+    # in the instructions and in tool results alike. Left to work out a
+    # weekday from a date, the model gets it wrong.
+    return f"{day.strftime('%A')} {day.isoformat()}"
 
 
 def tool_error(message: str) -> ToolResult:
@@ -108,12 +120,55 @@ def find_location_id(backend: httpx.Client, location: str) -> ToolResult:
     return tool_error(f"There is no location named '{location}'.")
 
 
+def count_open_slots_by_day(
+    first_day: date,
+    last_day: date,
+    all_slots: list[dict[str, Any]],
+    hours_info: dict[str, Any],
+) -> dict[str, int | str]:
+    """How many slots are open on each day searched, or "closed"."""
+    # Every day searched is listed, even past the slots shown. Without this,
+    # a week's search shows only Monday's slots, and the model concluded
+    # the location was closed on the Thursday the caller asked for.
+    counts_by_date: dict[str, int] = {}
+    for slot in all_slots:
+        slot_date = slot["start_time"][:10]
+        counts_by_date[slot_date] = counts_by_date.get(slot_date, 0) + 1
+
+    days: dict[str, int | str] = {}
+    day = first_day
+    while day <= last_day:
+        weekday = day.strftime("%A").lower()  # the hours use "monday"
+        if hours_info["details"][weekday] == CLOSED:
+            days[describe_day(day)] = CLOSED
+        else:
+            days[describe_day(day)] = counts_by_date.get(day.isoformat(), 0)
+        day += timedelta(days=1)
+    return days
+
+
+def open_elsewhere_on_closed_days(
+    first_day: date, last_day: date, hours_info: dict[str, Any]
+) -> dict[str, dict[str, str]]:
+    """For each closed day searched, the other locations open that day."""
+    open_elsewhere = {}
+    day = first_day
+    while day <= last_day:
+        weekday = day.strftime("%A").lower()
+        if hours_info["details"][weekday] == CLOSED:
+            open_elsewhere[describe_day(day)] = hours_info["open_elsewhere"][weekday]
+        day += timedelta(days=1)
+    return open_elsewhere
+
+
 def check_availability(
     backend: httpx.Client,
     location: str,
     appointment_type: str,
     first_day: str,
     last_day: str,
+    earliest_start: str | None = None,
+    latest_start: str | None = None,
 ) -> ToolResult:
     location_result = find_location_id(backend, location)
     if not location_result["ok"]:
@@ -125,34 +180,63 @@ def check_availability(
         "from": first_day,
         "to": last_day,
     }
+    # Left out of the URL when null, which the backend reads as "no limit".
+    if earliest_start is not None:
+        params["earliest_start"] = earliest_start
+    if latest_start is not None:
+        params["latest_start"] = latest_start
     slots_result = get_from_backend(backend, "/slots", params)
     if not slots_result["ok"]:
         return slots_result
+
+    # The hours say which days are closed, so the day counts can tell
+    # "closed" apart from "open, but nothing free".
+    hours_result = get_from_backend(
+        backend, "/clinic-info", {"topic": "hours", "location": location}
+    )
+    if not hours_result["ok"]:
+        return hours_result
+    hours_info = hours_result["data"]
 
     all_slots = slots_result["data"]
     # Only what the model needs to offer and later book a slot. Fewer
     # fields means fewer tokens and a shorter debug line.
     slots = []
     for slot in all_slots[:MAX_SLOTS_RETURNED]:
+        start_day = date.fromisoformat(slot["start_time"][:10])
         slots.append(
             {
                 "slot_id": slot["id"],
+                "day": start_day.strftime("%A"),
                 "start_time": slot["start_time"],
                 "provider": slot["provider_name"],
             }
         )
 
+    # The backend has already rejected most bad dates with a clear message,
+    # but it also accepts a few forms, such as timestamps, that
+    # date.fromisoformat doesn't.
+    try:
+        first = date.fromisoformat(first_day)
+        last = date.fromisoformat(last_day)
+    except ValueError:
+        return tool_error("Dates must look like YYYY-MM-DD, such as 2026-11-02.")
     result = {
         "ok": True,
         "location": location,
         "appointment_type": appointment_type,
         "open_slot_count": len(all_slots),
+        "open_slots_by_day": count_open_slots_by_day(first, last, all_slots, hours_info),
         "slots": slots,
     }
+    open_elsewhere = open_elsewhere_on_closed_days(first, last, hours_info)
+    if open_elsewhere:
+        result["open_elsewhere"] = open_elsewhere
     if len(all_slots) > MAX_SLOTS_RETURNED:
         result["note"] = (
-            f"Only the earliest {MAX_SLOTS_RETURNED} are listed."
-            " Search a narrower date range to see later times."
+            f"Only the earliest {MAX_SLOTS_RETURNED} are listed; open_slots_by_day"
+            " counts them all. Search one day, or a narrower range of start"
+            " times, to see later ones."
         )
     return result
 
@@ -202,7 +286,9 @@ def tool_definitions(location_names: list[str]) -> list[dict[str, Any]]:
         "name": "check_availability",
         "description": (
             "List open appointment slots at one location for an appointment"
-            " type, between two dates (both included)."
+            " type, between two dates (both included), and optionally between"
+            " two start times. Also counts the open slots on each day searched,"
+            " and says which of those days the location is closed."
         ),
         "strict": True,
         "parameters": {
@@ -212,8 +298,29 @@ def tool_definitions(location_names: list[str]) -> list[dict[str, Any]]:
                 "appointment_type": {"type": "string", "enum": APPOINTMENT_TYPES},
                 "first_day": {"type": "string", "description": "YYYY-MM-DD"},
                 "last_day": {"type": "string", "description": "YYYY-MM-DD, included"},
+                "earliest_start": {
+                    "type": ["string", "null"],
+                    "description": (
+                        "HH:MM, 24-hour: only slots starting at or after this."
+                        " null for no limit."
+                    ),
+                },
+                "latest_start": {
+                    "type": ["string", "null"],
+                    "description": (
+                        "HH:MM, 24-hour: only slots starting at or before this."
+                        " null for no limit."
+                    ),
+                },
             },
-            "required": ["location", "appointment_type", "first_day", "last_day"],
+            "required": [
+                "location",
+                "appointment_type",
+                "first_day",
+                "last_day",
+                "earliest_start",
+                "latest_start",
+            ],
             "additionalProperties": False,
         },
     }

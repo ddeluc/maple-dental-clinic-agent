@@ -6,7 +6,7 @@ Interactive docs: http://localhost:8000/docs
 
 import sqlite3
 from collections.abc import Iterator
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, time, timedelta
 from pathlib import Path
 from typing import Annotated, Literal
 
@@ -247,6 +247,18 @@ def get_clinic_info(
     return ClinicInfo(topic=topic, location=location, details=location_facts[topic])
 
 
+def starts_between(start_time: str, earliest: time | None, latest: time | None) -> bool:
+    """Whether a slot's clock time is inside the limits. None means no limit."""
+    # Filtered in Python rather than in SQL: each optional limit in SQL
+    # needs "? IS NULL OR ...", which is harder to read than this.
+    clock = datetime.fromisoformat(start_time).time()
+    if earliest is not None and clock < earliest:
+        return False
+    if latest is not None and clock > latest:
+        return False
+    return True
+
+
 @app.get("/slots")
 def get_open_slots(
     db: Database,
@@ -258,6 +270,12 @@ def get_open_slots(
     appointment_type: Annotated[str, Query(alias="type", description="cleaning or checkup")],
     first_day: Annotated[date, Query(alias="from", description="YYYY-MM-DD")],
     last_day: Annotated[date, Query(alias="to", description="YYYY-MM-DD, inclusive")],
+    earliest_start: Annotated[
+        time | None, Query(description="HH:MM; only slots starting at or after this")
+    ] = None,
+    latest_start: Annotated[
+        time | None, Query(description="HH:MM; only slots starting at or before this")
+    ] = None,
 ) -> list[Slot]:
     """Return the open slots for one location and appointment type.
 
@@ -266,6 +284,10 @@ def get_open_slots(
     """
     if first_day > last_day:
         raise HTTPException(status_code=422, detail="'from' must be on or before 'to'.")
+    if earliest_start is not None and latest_start is not None and earliest_start > latest_start:
+        raise HTTPException(
+            status_code=422, detail="'earliest_start' must be on or before 'latest_start'."
+        )
 
     location_row = db.execute(
         "SELECT id FROM locations WHERE id = ?", (location,)
@@ -302,6 +324,8 @@ def get_open_slots(
 
     slots = []
     for row in rows:
+        if not starts_between(row["start_time"], earliest_start, latest_start):
+            continue
         slots.append(
             Slot(
                 id=row["id"],

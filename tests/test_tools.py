@@ -116,7 +116,55 @@ def test_availability_lists_at_most_the_cap_and_says_so(backend):
 
     assert len(result["slots"]) == MAX_SLOTS_RETURNED
     assert result["open_slot_count"] > MAX_SLOTS_RETURNED
-    assert "narrower date range" in result["note"]
+    assert "open_slots_by_day counts them all" in result["note"]
+
+
+def test_availability_names_the_weekday_of_each_slot(backend):
+    result = check_availability(backend, "Verdun", "cleaning", "2026-10-27", "2026-10-27")
+    for slot in result["slots"]:
+        assert slot["day"] == "Tuesday"
+
+
+def test_availability_counts_every_day_searched_and_marks_closed_days(backend):
+    result = check_availability(backend, "Verdun", "cleaning", "2026-10-26", "2026-11-01")
+    by_day = result["open_slots_by_day"]
+
+    # The listed slots stop early in the week, but every day is counted,
+    # so a Thursday with open slots can't be mistaken for a closed one.
+    for slot in result["slots"]:
+        assert not slot["start_time"].startswith("2026-10-29")
+    assert by_day["Thursday 2026-10-29"] > 0
+    assert by_day["Saturday 2026-10-31"] == "closed"
+    assert by_day["Sunday 2026-11-01"] == "closed"
+
+    total = 0
+    for count in by_day.values():
+        if count != "closed":
+            total += count
+    assert total == result["open_slot_count"]
+
+
+def test_availability_says_where_else_is_open_on_closed_days(backend):
+    week = check_availability(backend, "Verdun", "cleaning", "2026-10-26", "2026-11-01")
+    weekdays = check_availability(backend, "Verdun", "cleaning", "2026-10-26", "2026-10-30")
+
+    assert week["open_elsewhere"] == {
+        "Saturday 2026-10-31": {"Plateau": "09:00-13:00"},
+        "Sunday 2026-11-01": {},
+    }
+    assert "open_elsewhere" not in weekdays
+
+
+def test_availability_between_start_times(backend):
+    result = check_availability(
+        backend, "Verdun", "checkup", "2026-10-29", "2026-10-29", "12:00", "17:00"
+    )
+
+    assert result["open_slot_count"] > 0
+    for slot in result["slots"]:
+        assert slot["start_time"][11:16] >= "12:00"
+    # The day's count follows the same limits.
+    assert result["open_slots_by_day"] == {"Thursday 2026-10-29": result["open_slot_count"]}
 
 
 def test_availability_unknown_location_is_an_error_result(backend):
@@ -171,3 +219,27 @@ def test_tool_definitions_offer_only_the_configured_locations():
 
     availability = definitions[1]["parameters"]["properties"]
     assert availability["location"]["enum"] == ["Plateau", "Verdun"]
+
+
+def test_run_tool_availability_with_null_start_times(backend):
+    # Strict mode sends every parameter, so "no limit" arrives as null.
+    arguments = json.dumps(
+        {
+            "location": "Verdun",
+            "appointment_type": "cleaning",
+            "first_day": "2026-10-27",
+            "last_day": "2026-10-27",
+            "earliest_start": None,
+            "latest_start": None,
+        }
+    )
+    result = run_tool(backend, "check_availability", arguments)
+    assert result["ok"] is True
+    assert result["open_slot_count"] > 0
+
+
+def test_tool_definitions_require_every_property_for_strict_mode():
+    # The API rejects a strict tool whose "required" leaves a property out.
+    for definition in tool_definitions(["Plateau"]):
+        parameters = definition["parameters"]
+        assert parameters["required"] == list(parameters["properties"])

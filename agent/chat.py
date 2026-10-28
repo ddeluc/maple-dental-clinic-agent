@@ -20,7 +20,7 @@ from langfuse import get_client, propagate_attributes
 from langfuse.openai import OpenAI
 
 from agent.config import LANGUAGES, load_clinic_config, location_names
-from agent.tools import make_backend_client, run_tool, tool_definitions
+from agent.tools import describe_day, make_backend_client, run_tool, tool_definitions
 
 MODEL = "gpt-4o-mini"
 EXIT_WORDS = {"quit", "exit"}
@@ -59,17 +59,21 @@ def describe_dates(today: date) -> str:
     """Today, next week and a short calendar, as the agent is told them."""
     # The evals give their judges this same text, so a judge reads "next
     # Thursday" exactly the way the agent was told to.
+    # Next week is spelled out day by day. Given only its first and last
+    # dates, the model took "the Saturday of next week" to be the first one,
+    # a Monday.
     next_monday = first_day_of_next_week(today)
-    next_sunday = next_monday + timedelta(days=6)
+    next_week = []
+    for offset in range(7):
+        next_week.append(describe_day(next_monday + timedelta(days=offset)))
 
     coming_days = []
     for offset in range(1, CALENDAR_DAYS + 1):
-        day = today + timedelta(days=offset)
-        coming_days.append(f"{day.strftime('%A')} {day.isoformat()}")
+        coming_days.append(describe_day(today + timedelta(days=offset)))
 
     return (
-        f"Today is {today.strftime('%A')}, {today.isoformat()}. "
-        f"Next week is {next_monday.isoformat()} to {next_sunday.isoformat()}.\n"
+        f"Today is {today.strftime('%A')}, {today.isoformat()}.\n"
+        f"Next week is: {', '.join(next_week)}.\n"
         f"The coming days are: {', '.join(coming_days)}."
     )
 
