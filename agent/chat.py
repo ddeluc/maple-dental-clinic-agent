@@ -30,8 +30,8 @@ EXIT_WORDS = {"quit", "exit"}
 TURN_NAME = "answer-caller"
 DETECT_LANGUAGE_NAME = "detect-language"
 GENERATE_RESPONSE_NAME = "generate-response"
-# Tags are fixed when a trace starts. This one will tell text-chat traces
-# apart from phone calls once the voice agent exists.
+# Tags are fixed when a trace starts. This one tells text-chat traces apart
+# from voice calls, which agent/voice.py tags with its own channel.
 CHANNEL_TAG = "text-chat"
 
 # Each turn, the model may ask for tools a few times in a row (for example
@@ -284,17 +284,18 @@ def answer_and_trace(
     language: str | None,
     user_text: str,
     session_id: str,
+    channel_tag: str = CHANNEL_TAG,
 ) -> tuple[str, str | None]:
     """Answer one caller message as one Langfuse trace in the call's session."""
-    # Shared by the chat loop and the evals, so eval runs are traced the
-    # same way as real conversations.
+    # Shared by the chat loop, the voice agent and the evals, so every mode
+    # is traced the same way as real conversations.
     #
     # propagate_attributes wraps the turn's root observation so the
     # session id and tag reach it and every observation inside it.
     # The root's input and output are what the caller said and what the
     # agent replied: the trace's summary in Langfuse's trace list. Its
     # duration is the turn's response time.
-    with propagate_attributes(session_id=session_id, tags=[CHANNEL_TAG]):
+    with propagate_attributes(session_id=session_id, tags=[channel_tag]):
         with get_client().start_as_current_observation(
             as_type="agent", name=TURN_NAME, input=user_text
         ) as turn:
