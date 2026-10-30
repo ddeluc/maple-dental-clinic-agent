@@ -12,6 +12,7 @@ tools and safety checks.
 """
 
 import asyncio
+import re
 import threading
 from typing import Any
 
@@ -26,6 +27,7 @@ from livekit.agents import (
     Agent,
     AgentServer,
     AgentSession,
+    ConversationItemAddedEvent,
     JobContext,
     ModelSettings,
     TurnHandlingOptions,
@@ -65,8 +67,52 @@ UNUSED_LLM_MODEL = "openai/gpt-4o-mini"
 
 # The text to speech must be told the language, or it reads English words
 # with French pronunciation (or the reverse). The greeting starts in French.
-TTS_LANGUAGE_CODES = {"french": "fr", "english": "en"}
 GREETING_TTS_LANGUAGE = "fr"
+
+# Short, common words that appear in almost every sentence of one language
+# and not the other, used to tell which language a reply is in. Words both
+# languages share (such as "a", "on" or "son") are left out on purpose.
+FRENCH_MARKER_WORDS = {
+    "je", "vous", "nous", "le", "la", "les", "un", "une", "des", "du", "de",
+    "est", "et", "pour", "avec", "votre", "vos", "pas", "oui", "merci", "au",
+    "bonjour", "rendez", "quel", "quelle", "ai", "êtes", "à",
+}
+ENGLISH_MARKER_WORDS = {
+    "i", "you", "we", "the", "an", "is", "are", "and", "for", "with", "your",
+    "not", "yes", "thanks", "thank", "hello", "appointment", "which", "what",
+    "to", "of", "it", "have", "can",
+}
+# Letters only, accents included, so "l'heure" splits into "l" and "heure"
+# and "rendez-vous" into "rendez" and "vous".
+WORD_PATTERN = re.compile(r"[a-zàâäçéèêëîïôöûùüÿœæ]+")
+
+
+def reply_language(reply: str) -> str | None:
+    """The text to speech language code of a reply: "fr", "en", or None if unclear."""
+    french_count = 0
+    english_count = 0
+    for word in WORD_PATTERN.findall(reply.lower()):
+        if word in FRENCH_MARKER_WORDS:
+            french_count += 1
+        elif word in ENGLISH_MARKER_WORDS:
+            english_count += 1
+
+    if french_count > english_count:
+        return "fr"
+    if english_count > french_count:
+        return "en"
+    return None
+
+
+def log_if_interrupted(event: ConversationItemAddedEvent) -> None:
+    """Print what the caller heard when they cut the agent off."""
+    item = event.item
+    if item.type != "message" or item.role != "assistant":
+        return
+    # LiveKit marks a reply as interrupted and keeps only the part that was
+    # actually spoken, so this shows where the agent stopped talking.
+    if item.interrupted:
+        print(f'  [interrupted] heard: "{item.text_content}"')
 
 
 def latest_caller_text(chat_ctx: llm.ChatContext) -> str | None:
@@ -132,7 +178,7 @@ class MapleDentalAgent(Agent):
         # Run on the event loop, it would freeze the audio for the whole
         # call; in a thread, LiveKit keeps listening while it works.
         reply = await asyncio.to_thread(self.answer, caller_text)
-        self.match_voice_to_language()
+        self.match_voice_to_reply(reply)
         return reply
 
     def answer(self, caller_text: str) -> str:
@@ -151,12 +197,22 @@ class MapleDentalAgent(Agent):
             )
         return reply
 
-    def match_voice_to_language(self) -> None:
-        # Until the language is clear the voice stays French, which suits
-        # the bilingual "unclear language" reply.
+    def match_voice_to_reply(self, reply: str) -> None:
+        # Read from the reply, not from self.language: self.language never
+        # changes after the first message, but the reply switches language
+        # when the caller asks to (the prompt handles that). The voice must
+        # follow what is actually about to be said.
+        #
+        # Until the call's language is chosen, the reply is always the
+        # bilingual "unclear language" one, which starts in French. Counting
+        # words in it could pick English, so the voice stays French instead.
         if self.language is None:
             return
-        self.session.tts.update_options(language=TTS_LANGUAGE_CODES[self.language])
+        language_code = reply_language(reply)
+        # Unclear (too few marker words to tell): keep the current voice.
+        if language_code is None:
+            return
+        self.session.tts.update_options(language=language_code)
 
 
 server = AgentServer()
@@ -182,6 +238,25 @@ async def answer_call(ctx: JobContext) -> None:
             # Decides when the caller has finished speaking, from the audio
             # and the words, so a pause mid-sentence isn't taken as the end.
             turn_detection=inference.TurnDetector(),
+            # How long a pause must last before the turn can end. Slower
+            # than this detector's defaults (0.3s and 2.5s): callers pause
+            # while reading out a phone number or date of birth, and
+            # cutting them off mid-number is worse than a short wait.
+            endpointing={"min_delay": 0.5, "max_delay": 3.0},
+            interruption={
+                # LiveKit's model that tells a real interruption from
+                # "mm-hmm" or "oui, oui", which shouldn't stop the agent.
+                # Set explicitly because LiveKit only turns it on by
+                # default in dev mode, not when self-hosted in production.
+                "mode": "adaptive",
+                # Talking this long over the agent stops it. Short enough
+                # to feel responsive, long enough that a cough doesn't.
+                "min_duration": 0.5,
+                # If the caller goes quiet right after a noise that stopped
+                # the agent, finish the sentence instead of leaving silence.
+                "resume_false_interruption": True,
+                "false_interruption_timeout": 2.0,
+            },
             # Off on purpose. Preemptive generation starts a reply before
             # the caller has finished, and throws it away if they keep
             # talking. Our replies run tools, so a thrown-away reply could
@@ -189,6 +264,7 @@ async def answer_call(ctx: JobContext) -> None:
             preemptive_generation={"enabled": False},
         ),
     )
+    session.on("conversation_item_added", log_if_interrupted)
 
     # The room name is unique per session, so it doubles as the Langfuse
     # session id and makes a trace easy to match with LiveKit's call logs.

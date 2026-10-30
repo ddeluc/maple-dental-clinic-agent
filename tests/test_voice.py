@@ -1,10 +1,12 @@
+from types import SimpleNamespace
+
 import httpx
 import pytest
-from livekit.agents import llm
+from livekit.agents import ConversationItemAddedEvent, llm
 
 from agent import voice
 from agent.config import load_clinic_config
-from agent.voice import MapleDentalAgent, latest_caller_text
+from agent.voice import MapleDentalAgent, latest_caller_text, log_if_interrupted, reply_language
 
 
 @pytest.fixture
@@ -99,3 +101,98 @@ def test_each_call_starts_unverified_with_no_language(fake_keys):
 
     assert first_call.language is None
     assert first_call.call_state is not second_call.call_state
+
+
+def test_reply_language_recognizes_french():
+    reply = "Parfait, votre rendez-vous est confirmé pour mardi à 9 h. Je vous attends!"
+
+    assert reply_language(reply) == "fr"
+
+
+def test_reply_language_recognizes_english():
+    reply = "Great, your appointment is booked for Tuesday at 9. Is there anything else?"
+
+    assert reply_language(reply) == "en"
+
+
+def test_reply_language_ignores_french_place_names_in_an_english_reply():
+    reply = "The Plateau clinic is on rue Saint-Denis. Which day works for you?"
+
+    assert reply_language(reply) == "en"
+
+
+def test_reply_language_is_none_when_it_cant_tell():
+    # Only a time and a name: no marker words in either language.
+    assert reply_language("9 h 30, Verdun.") is None
+
+
+class FakeTTS:
+    """Records the languages the agent sets on the text to speech."""
+
+    def __init__(self) -> None:
+        self.languages: list[str] = []
+
+    def update_options(self, language: str) -> None:
+        self.languages.append(language)
+
+
+@pytest.fixture
+def agent_with_fake_tts(monkeypatch, fake_keys):
+    # Agent.session only works during a live LiveKit call. Replacing it on
+    # the class with a plain object lets the test read what the agent sends
+    # to the text to speech; monkeypatch puts the real property back after.
+    fake_tts = FakeTTS()
+    monkeypatch.setattr(MapleDentalAgent, "session", SimpleNamespace(tts=fake_tts))
+    with httpx.Client() as backend:
+        agent = MapleDentalAgent(load_clinic_config(), backend, session_id="room-1")
+        yield agent, fake_tts
+
+
+def test_voice_follows_a_switch_to_french_in_an_english_call(agent_with_fake_tts):
+    agent, fake_tts = agent_with_fake_tts
+    # The call started in English. The caller then asked to speak French,
+    # so the model replies in French while self.language stays "english".
+    agent.language = "english"
+
+    agent.match_voice_to_reply("Sure, which location works best for you?")
+    agent.match_voice_to_reply("Bien sûr! Quelle clinique vous convient le mieux?")
+
+    assert fake_tts.languages == ["en", "fr"]
+
+
+def test_voice_stays_french_before_the_language_is_chosen(agent_with_fake_tts):
+    agent, fake_tts = agent_with_fake_tts
+    unclear_reply = load_clinic_config()["unclear_language_reply"]
+
+    agent.match_voice_to_reply(unclear_reply)
+
+    # Nothing is changed, so the voice keeps the greeting's French.
+    assert fake_tts.languages == []
+
+
+def test_voice_is_unchanged_when_the_reply_language_is_unclear(agent_with_fake_tts):
+    agent, fake_tts = agent_with_fake_tts
+    agent.language = "english"
+
+    agent.match_voice_to_reply("9 h 30, Verdun.")
+
+    assert fake_tts.languages == []
+
+
+def make_item_added_event(role: str, text: str, interrupted: bool) -> ConversationItemAddedEvent:
+    message = llm.ChatMessage(role=role, content=[text], interrupted=interrupted)
+    return ConversationItemAddedEvent(item=message)
+
+
+def test_an_interrupted_reply_is_logged_with_what_was_heard(capsys):
+    log_if_interrupted(make_item_added_event("assistant", "We have openings at 9,", True))
+
+    assert capsys.readouterr().out == '  [interrupted] heard: "We have openings at 9,"\n'
+
+
+def test_finished_replies_and_caller_turns_are_not_logged(capsys):
+    log_if_interrupted(make_item_added_event("assistant", "We have openings at 9.", False))
+    # The caller's own turns are never "interrupted" in the agent's sense.
+    log_if_interrupted(make_item_added_event("user", "Hi, I need a cleaning.", True))
+
+    assert capsys.readouterr().out == ""
